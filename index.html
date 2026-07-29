@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Quality BI Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  
+  <style>
+    body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 50px;}
+    .kpi-card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; border-bottom: 4px solid #0d6efd;}
+    .kpi-value { font-size: 26px; font-weight: bold; color: #333; }
+    .chart-container { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; position: relative; height: 320px;}
+    .filter-bar { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    select[multiple] { height: 100px; }
+    #loader { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column;}
+    .report-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 0.9rem;}
+    .report-table th, .report-table td { border: 1px solid #000; padding: 6px 10px; vertical-align: middle; }
+    .header-yellow th { background-color: #ffe699; color: #000; font-weight: bold; text-align: center;}
+    .header-blue th { background-color: #b4c6e7; color: #000; font-weight: bold; text-align: center;}
+    .col-stage { width: 15%; text-align: center; font-weight: bold; background-color: #fff;}
+    .col-defect { width: 20%; text-align: center; }
+    .col-qty { width: 10%; text-align: center; font-weight: bold;}
+    .col-rate { width: 10%; text-align: center; }
+    .col-analysis { width: 45%; text-align: left; }
+    .footer-row td { font-weight: bold; font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+  <div id="loader">
+    <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;"></div>
+    <h3 class="mt-3">Syncing Live Production Data...</h3>
+  </div>
+
+  <div class="container-fluid pt-3">
+    <h3 class="mb-3 fw-bold text-dark">Live Quality & Yield Dashboard</h3>
+
+    <!-- FILTERS -->
+    <div class="filter-bar row g-3">
+      <div class="col-md-2">
+        <label class="form-label fw-bold">Date (Multi-Select)</label>
+        <select id="filter-date" class="form-select select-filter" multiple></select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold">Line (Multi-Select)</label>
+        <select id="filter-line" class="form-select select-filter" multiple></select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Model (Multi-Select)</label>
+        <select id="filter-model" class="form-select select-filter" multiple></select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Category (Multi-Select)</label>
+        <select id="filter-category" class="form-select select-filter" multiple></select>
+        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+      </div>
+      <div class="col-md-2 d-flex flex-column justify-content-end pb-4">
+        <button class="btn btn-primary w-100 mb-2" onclick="applyFilters()">Apply Filters</button>
+        <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">Reset All</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><div class="kpi-card" style="border-color: #0d6efd;"><div>Total Input</div><div class="kpi-value" id="kpi-input">0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-color: #dc3545;"><div>Total Defects</div><div class="kpi-value text-danger" id="kpi-defects">0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-color: #198754;"><div>Overall FPY (Yield)</div><div class="kpi-value text-success" id="kpi-yield">0%</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-color: #ffc107;"><div>Rejection Rate</div><div class="kpi-value text-warning" id="kpi-rejection">0%</div></div></div>
+    </div>
+
+    <!-- CHARTS ROW 1 (Trends & Lines) -->
+    <div class="row g-3">
+      <div class="col-md-6"><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+      <div class="col-md-6"><div class="chart-container"><canvas id="lineYieldChart"></canvas></div></div>
+    </div>
+    
+    <!-- CHARTS ROW 2 (Model Rejection) -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-12"><div class="chart-container" style="height: 300px;"><canvas id="modelRejChart"></canvas></div></div>
+    </div>
+    
+    <!-- PARETO CHART SECTION (Default set to Rate) -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-12">
+        <div class="chart-container" style="height: 380px;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="fw-bold mb-0 text-secondary" style="font-size:16px;">Defect Pareto Analysis</h5>
+            <div class="btn-group" role="group">
+              <input type="radio" class="btn-check" name="paretoMode" id="btnRate" autocomplete="off" checked onchange="toggleParetoMode('rate')">
+              <label class="btn btn-outline-primary btn-sm" for="btnRate">By Defect Rate (%)</label>
+              
+              <input type="radio" class="btn-check" name="paretoMode" id="btnQty" autocomplete="off" onchange="toggleParetoMode('qty')">
+              <label class="btn btn-outline-primary btn-sm" for="btnQty">By Defect Qty</label>
+            </div>
+          </div>
+          <div style="height: 310px;"><canvas id="paretoChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <h4 class="fw-bold mb-3 border-bottom pb-2">Stage-Wise Model Summary Reports</h4>
+    <div id="reports-container"></div>
+  </div>
+
+  <script>
+    // ==========================================
+    // PASTE YOUR GOOGLE SCRIPT WEB APP URL BELOW
+    // ==========================================
+    const API_URL = "https://script.google.com/macros/s/AKfycbz1oEfpZJwvleXwocY4Moe2R_bhbNgimDOQROlfGHZCQR2TRQWDlrZ8SjDosAiyeitG9A/exec";
+
+
+    // Configure Global DataLabels Plugin
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set('plugins.datalabels', { 
+      color: '#000', 
+      font: { weight: 'bold' }, 
+      anchor: 'end', 
+      align: 'top', 
+      offset: 4,
+      formatter: Math.round // Default fallback
+    });
+
+    let rawRecords = [];
+    let rawInputs = [];
+    let charts = {};
+    
+    // Globals for Pareto Toggle (Default is now 'rate')
+    let currentParetoMode = 'rate'; 
+    let filteredRecordsForPareto = [];
+    let filteredTotalInputForPareto = 0;
+
+    window.onload = async () => {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        
+        function cleanDate(rawDate) {
+          if (!rawDate) return "Unknown";
+          let str = String(rawDate);
+          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          if (/^\d{2}[-/]\d{2}[-/]\d{4}/.test(str)) {
+            let parts = str.split(/[-/]/);
+            let mIndex = parseInt(parts[1], 10) - 1;
+            return `${parts[0]}-${months[mIndex] || parts[1]}`;
+          }
+          let d = new Date(str);
+          if (!isNaN(d.getTime())) return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}`;
+          return str.substring(0, 10);
+        }
+
+        rawRecords = data.records.map(r => ({ ...r, date: cleanDate(r.date) }));
+        rawInputs = data.inputs.map(i => ({ ...i, date: cleanDate(i.date) }));
+
+        populateFilters();
+        applyFilters(); 
+        document.getElementById('loader').style.display = 'none';
+      } catch (err) {
+        document.getElementById('loader').innerHTML = `<h3 class="text-danger">Failed to load data.</h3>`;
+        console.error(err);
+      }
+    };
+
+    function populateFilters() {
+      const dates = [...new Set(rawRecords.map(r => r.date))].sort();
+      const lines = [...new Set(rawRecords.map(r => r.line))].sort();
+      const models = [...new Set(rawRecords.map(r => r.model))].sort();
+      const categories = [...new Set(rawRecords.map(r => r.category))].sort();
+
+      const addOptions = (id, arr) => {
+        const select = document.getElementById(id);
+        select.innerHTML = "";
+        arr.forEach(val => select.innerHTML += `<option value="${val}">${val}</option>`);
+      };
+
+      addOptions('filter-date', dates);
+      addOptions('filter-line', lines);
+      addOptions('filter-model', models);
+      addOptions('filter-category', categories);
+    }
+
+    function resetFilters() {
+      document.querySelectorAll('.select-filter').forEach(el => el.selectedIndex = -1);
+      applyFilters();
+    }
+
+    function getSelectedValues(id) {
+      return Array.from(document.getElementById(id).selectedOptions).map(opt => opt.value);
+    }
+
+    function applyFilters() {
+      const fDates = getSelectedValues('filter-date');
+      const fLines = getSelectedValues('filter-line');
+      const fModels = getSelectedValues('filter-model');
+      const fCats = getSelectedValues('filter-category');
+
+      const filterLogic = (item, prop, fArray) => fArray.length === 0 || fArray.includes(item[prop]);
+
+      const filteredRecords = rawRecords.filter(r => 
+        filterLogic(r, 'date', fDates) && filterLogic(r, 'line', fLines) && 
+        filterLogic(r, 'model', fModels) && filterLogic(r, 'category', fCats)
+      );
+
+      const filteredInputs = rawInputs.filter(r => 
+        filterLogic(r, 'date', fDates) && filterLogic(r, 'line', fLines) && filterLogic(r, 'model', fModels)
+      );
+
+      updateDashboard(filteredRecords, filteredInputs, fDates);
+    }
+
+    function updateDashboard(records, inputs, selectedDates) {
+      let totalInput = inputs.reduce((sum, item) => sum + item.input, 0);
+      let totalDefects = records.reduce((sum, item) => sum + item.qty, 0);
+      let rejRate = totalInput > 0 ? (totalDefects / totalInput) * 100 : 0;
+      let yieldRate = totalInput > 0 ? ((totalInput - totalDefects) / totalInput) * 100 : 0;
+
+      document.getElementById('kpi-input').innerText = totalInput.toLocaleString();
+      document.getElementById('kpi-defects').innerText = totalDefects.toLocaleString();
+      document.getElementById('kpi-yield').innerText = yieldRate.toFixed(2) + "%";
+      document.getElementById('kpi-rejection').innerText = rejRate.toFixed(2) + "%";
+      
+      filteredRecordsForPareto = records;
+      filteredTotalInputForPareto = totalInput;
+
+      drawTrendChart(records, inputs);
+      drawLineYieldChart(inputs, records);
+      drawModelRejChart(inputs, records);
+      drawParetoChart(); 
+      generateStageWiseTables(records, inputs, selectedDates);
+    }
+
+    // 1. DATE-WISE TREND (Line)
+    function drawTrendChart(records, inputs) {
+      let dates = [...new Set(inputs.map(i => i.date))].sort();
+      let rates = dates.map(d => {
+        let dInp = inputs.filter(i => i.date === d).reduce((s, x) => s + x.input, 0);
+        let dDef = records.filter(r => r.date === d).reduce((s, x) => s + x.qty, 0);
+        return dInp > 0 ? ((dDef / dInp) * 100).toFixed(2) : 0;
+      });
+      
+      if (charts['trendChart']) charts['trendChart'].destroy();
+      charts['trendChart'] = new Chart(document.getElementById('trendChart'), { 
+        type: 'line', 
+        data: { 
+          labels: dates, 
+          datasets: [{ 
+            label: 'Rejection Trend (%)', 
+            data: rates, 
+            borderColor: '#dc3545', 
+            backgroundColor: '#dc3545',
+            tension: 0.1,
+            pointRadius: 4,
+            datalabels: { formatter: (val) => val + '%' } // Force % sign
+          }] 
+        }, 
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Date-wise Rejection Trend', font: {size: 16} } } } 
+      });
+    }
+
+    // 2. LINE-WISE YIELD (Changed to Line Graph)
+    function drawLineYieldChart(inputs, records) {
+      let lines = [...new Set(inputs.map(i => i.line))].sort();
+      let yields = lines.map(l => {
+        let lInp = inputs.filter(i => i.line === l).reduce((s, x) => s + x.input, 0);
+        let lDef = records.filter(r => r.line === l).reduce((s, x) => s + x.qty, 0);
+        return lInp > 0 ? (((lInp - lDef) / lInp) * 100).toFixed(2) : 0;
+      });
+      
+      if (charts['lineYieldChart']) charts['lineYieldChart'].destroy();
+      charts['lineYieldChart'] = new Chart(document.getElementById('lineYieldChart'), { 
+        type: 'line', 
+        data: { 
+          labels: lines, 
+          datasets: [{ 
+            label: 'Line Yield (FPY %)', 
+            data: yields, 
+            borderColor: '#198754', 
+            backgroundColor: 'rgba(25, 135, 84, 0.1)', 
+            fill: true,
+            tension: 0.3,
+            pointRadius: 5,
+            pointBackgroundColor: '#198754',
+            datalabels: { formatter: (val) => val + '%' } // Force % sign
+          }] 
+        }, 
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Line-Wise Yield (FPY)', font: {size: 16} } } } 
+      });
+    }
+
+    // 3. MODEL-WISE REJECTION (New Graph)
+    function drawModelRejChart(inputs, records) {
+      let models = [...new Set(inputs.map(i => i.model))].sort();
+      let rates = models.map(m => {
+        let mInp = inputs.filter(i => i.model === m).reduce((s, x) => s + x.input, 0);
+        let mDef = records.filter(r => r.model === m).reduce((s, x) => s + x.qty, 0);
+        return mInp > 0 ? ((mDef / mInp) * 100).toFixed(2) : 0;
+      });
+      
+      if (charts['modelRejChart']) charts['modelRejChart'].destroy();
+      charts['modelRejChart'] = new Chart(document.getElementById('modelRejChart'), { 
+        type: 'bar', 
+        data: { 
+          labels: models, 
+          datasets: [{ 
+            label: 'Model Rejection Rate (%)', 
+            data: rates, 
+            backgroundColor: '#ffc107',
+            datalabels: { formatter: (val) => val + '%' } // Force % sign
+          }] 
+        }, 
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Model-Wise Rejection Rate', font: {size: 16} } } } 
+      });
+    }
+
+    // 4. PARETO CHART (Handles toggle & percentage formatting)
+    function toggleParetoMode(mode) {
+      currentParetoMode = mode;
+      drawParetoChart();
+    }
+
+    function drawParetoChart() {
+      if(filteredRecordsForPareto.length === 0) { 
+        if (charts['paretoChart']) charts['paretoChart'].destroy();
+        return; 
+      }
+      
+      let defMap = {}, totalDefects = 0;
+      filteredRecordsForPareto.forEach(r => { 
+        defMap[r.defect] = (defMap[r.defect] || 0) + r.qty; 
+        totalDefects += r.qty; 
+      });
+      
+      let sorted = Object.keys(defMap).map(k => ({ name: k, qty: defMap[k] })).sort((a, b) => b.qty - a.qty);
+      let labels = [], bars = [], lines = [], cum = 0;
+      
+      sorted.forEach(d => {
+        labels.push(d.name);
+        
+        // Calculate based on Mode
+        let barValue = currentParetoMode === 'qty' ? d.qty : (filteredTotalInputForPareto > 0 ? (d.qty / filteredTotalInputForPareto * 100) : 0);
+        bars.push(currentParetoMode === 'qty' ? barValue : barValue.toFixed(2));
+        
+        cum += d.qty; 
+        lines.push(((cum / totalDefects) * 100).toFixed(1));
+      });
+
+      if (charts['paretoChart']) charts['paretoChart'].destroy();
+
+      charts['paretoChart'] = new Chart(document.getElementById('paretoChart'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { 
+              type: 'line', 
+              label: 'Cumulative %', 
+              data: lines, 
+              borderColor: '#fd7e14', 
+              yAxisID: 'y1', 
+              datalabels: { display: false } 
+            },
+            { 
+              type: 'bar', 
+              label: currentParetoMode === 'qty' ? 'Defect Qty' : 'Defect Rate (%)', 
+              data: bars, 
+              backgroundColor: '#0d6efd', 
+              yAxisID: 'y',
+              datalabels: {
+                display: true,
+                formatter: function(value) {
+                  return currentParetoMode === 'rate' ? value + '%' : Math.round(value);
+                }
+              }
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { title: { display: false } },
+          scales: {
+            y: { type: 'linear', position: 'left', title: { display: true, text: currentParetoMode === 'qty' ? 'Quantity' : 'Rate (%)' } },
+            y1: { type: 'linear', position: 'right', max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: 'Cumulative %'} }
+          }
+        }
+      });
+    }
+
+    // 5. STAGE-WISE TABLES
+    function generateStageWiseTables(records, inputs, selectedDates) {
+      const container = document.getElementById('reports-container');
+      container.innerHTML = "";
+      if (records.length === 0) { container.innerHTML = "<p>No data found for these filters.</p>"; return; }
+
+      let datesArr = records.map(r => r.date).sort();
+      let dateHeader = datesArr.length > 0 ? (datesArr[0] + (datesArr[0] !== datesArr[datesArr.length-1] ? " to " + datesArr[datesArr.length-1] : "")) : "-";
+      if (selectedDates.length > 0) dateHeader = selectedDates.join(", "); 
+
+      let models = [...new Set(records.map(r => r.model))];
+
+      models.forEach(modelName => {
+        let mRecords = records.filter(r => r.model === modelName);
+        let mInputs = inputs.filter(i => i.model === modelName);
+        let mTotalInput = mInputs.reduce((s, x) => s + x.input, 0);
+        let mTotalDefects = mRecords.reduce((s, x) => s + x.qty, 0);
+        let mLines = [...new Set(mInputs.map(i => i.line))].join(", ");
+        let mRejRate = mTotalInput > 0 ? ((mTotalDefects / mTotalInput) * 100).toFixed(2) + "%" : "0.00%";
+        let mFpy = mTotalInput > 0 ? (((mTotalInput - mTotalDefects) / mTotalInput) * 100).toFixed(2) + "%" : "0.00%";
+
+        let stages = {};
+        mRecords.forEach(r => {
+          if (!stages[r.stage]) stages[r.stage] = {};
+          let issueKey = r.defect + "|" + r.analysis;
+          if (!stages[r.stage][issueKey]) stages[r.stage][issueKey] = { defect: r.defect, analysis: r.analysis, qty: 0 };
+          stages[r.stage][issueKey].qty += r.qty;
+        });
+
+        let html = `<table class="report-table">
+            <thead>
+              <tr class="header-yellow"><th>Model</th><th>${modelName}</th><th>Date</th><th colspan="2">${dateHeader}</th></tr>
+              <tr class="header-blue"><th colspan="2" class="text-start">Line :- ${mLines || "N/A"} | Input: ${mTotalInput}</th><th>Rejection Rate</th><th>${mRejRate}</th><th>FPY:- ${mFpy}</th></tr>
+              <tr class="header-yellow"><th>Stage</th><th>Defect Name</th><th>Total Defect Qty</th><th>Total Defect Rate</th><th>Analysis</th></tr>
+            </thead><tbody>`;
+
+        Object.keys(stages).forEach(stageName => {
+          let issues = Object.values(stages[stageName]).sort((a, b) => b.qty - a.qty);
+          issues.forEach((issue, index) => {
+            let issueRate = mTotalInput > 0 ? ((issue.qty / mTotalInput) * 100).toFixed(2) + "%" : "0.00%";
+            html += `<tr>`;
+            if (index === 0) html += `<td rowspan="${issues.length}" class="col-stage">${stageName}</td>`;
+            html += `<td class="col-defect">${issue.defect}</td><td class="col-qty">${issue.qty}</td><td class="col-rate">${issueRate}</td><td class="col-analysis">${issue.analysis}</td></tr>`;
+          });
+        });
+
+        html += `</tbody><tfoot><tr class="footer-row text-center"><td colspan="2">TOTAL</td><td class="text-danger">${mTotalDefects}</td><td class="text-danger">${mRejRate}</td><td></td></tr></tfoot></table>`;
+        container.innerHTML += html;
+      });
+    }
+  </script>
+</body>
+</html>
