@@ -25,9 +25,11 @@
     .kpi-title { font-size: 0.85rem; color: #828a92; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .kpi-value { font-size: 2rem; font-weight: 800; color: #212529; margin-top: 5px; line-height: 1; }
 
+    /* New Red Zone Alert Style */
+    .alert-red-zone { background: #fff5f5; border-left: 5px solid var(--danger); border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
     .chart-container, .filter-bar { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); margin-bottom: 20px; position: relative; }
     
-    /* Mobile-Friendly Checkbox Lists */
     .checkbox-list { height: 110px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 8px; padding: 10px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
     .checkbox-list label { width: 100%; cursor: pointer; font-weight: 600; font-size: 0.9rem; padding: 2px 0; color: #333;}
     .checkbox-list label:hover { background-color: #f8f9fa; }
@@ -58,12 +60,10 @@
 </head>
 <body>
 
-  <!-- Hidden logo for Excel Export -->
   <img id="companyLogo" crossorigin="anonymous" src="https://api.allorigins.win/raw?url=https://i.postimg.cc/5y7SN4xc/logo.png" alt="Logo">
 
   <div class="container-fluid pt-3 px-4">
     
-    <!-- HEADER -->
     <div class="dashboard-header d-flex flex-wrap justify-content-between align-items-center">
       <div class="d-flex align-items-center mb-2 mb-md-0">
         <img src="https://i.postimg.cc/5y7SN4xc/logo.png" alt="Company Logo" style="height: 50px; margin-right: 20px;">
@@ -76,7 +76,12 @@
       </button>
     </div>
 
-    <!-- FILTERS -->
+    <!-- RED ZONE ANALYSIS ALERT -->
+    <div id="red-zone-container" class="alert-red-zone d-none">
+        <h5 class="fw-bold text-danger mb-2">⚠️ Red Zone Alert (Yield < 97%)</h5>
+        <div id="red-zone-details" class="d-flex flex-wrap gap-3"></div>
+    </div>
+
     <div class="filter-bar row g-3">
       <div class="col-md-3">
         <label class="form-label fw-bold text-secondary">Date Range</label>
@@ -102,7 +107,6 @@
       </div>
     </div>
 
-    <!-- KPI CARDS -->
     <div class="row g-4 mb-4">
       <div class="col-md-3"><div class="kpi-card kpi-input"><div class="kpi-title">Total Input Qty</div><div class="kpi-value text-primary" id="kpi-input">0</div></div></div>
       <div class="col-md-3"><div class="kpi-card kpi-defects"><div class="kpi-title">Total Defects</div><div class="kpi-value text-danger" id="kpi-defects">0</div></div></div>
@@ -110,7 +114,6 @@
       <div class="col-md-3"><div class="kpi-card kpi-rejection"><div class="kpi-title">Rejection Rate</div><div class="kpi-value text-warning" id="kpi-rejection">0%</div></div></div>
     </div>
 
-    <!-- MODEL PERFORMANCE SUMMARY TABLE -->
     <div class="row g-4 mb-4">
       <div class="col-md-12">
         <div class="chart-container shadow-sm border-0 h-100">
@@ -127,14 +130,13 @@
                   <th class="text-start">Major Reason (Top Defect)</th>
                 </tr>
               </thead>
-              <tbody><!-- Injected via JS --></tbody>
+              <tbody></tbody>
             </table>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- CHARTS -->
     <div class="row g-4 mb-2">
       <div class="col-md-6"><div class="chart-container" style="height: 320px;"><canvas id="trendChart"></canvas></div></div>
       <div class="col-md-6"><div class="chart-container" style="height: 320px;"><canvas id="lineYieldChart"></canvas></div></div>
@@ -143,7 +145,6 @@
       <div class="col-md-12"><div class="chart-container" style="height: 300px;"><canvas id="modelRejChart"></canvas></div></div>
     </div>
     
-    <!-- PARETO -->
     <div class="row g-4 mb-5">
       <div class="col-md-12">
         <div class="chart-container" style="height: 420px;">
@@ -161,16 +162,13 @@
       </div>
     </div>
 
-    <!-- REPORTS -->
     <h4 class="fw-bolder mb-4 text-dark" style="font-size: 1.5rem;"><span style="color: var(--primary);">|</span> Stage-Wise Model Summary Reports</h4>
     <div id="reports-container"></div>
   </div>
 
   <script>
-    // ==========================================
-    // PASTE YOUR GOOGLE SCRIPT WEB APP URL BELOW
-    // ==========================================
     const API_URL = "https://script.google.com/macros/s/AKfycbzt-tb899ZjfBDm_4THMHcKP8Ux-JtU7LguIMglOUE6FXsJPRYmt9EEja38iIERFN9AxA/exec";
+    const TARGET_YIELD = 97.0;
 
     Chart.register(ChartDataLabels);
     Chart.defaults.backgroundColor = '#ffffff'; Chart.defaults.font.family = "'Segoe UI', sans-serif"; Chart.defaults.font.weight = 'bold';
@@ -203,12 +201,9 @@
       try {
         const response = await fetch(API_URL);
         const data = await response.json();
-        
         rawRecords = data.records.map(r => { let iso = parseToISODate(r.date); return { ...r, isoDate: iso, date: getDisplayDate(iso), qty: Number(r.qty)||0 }; }).filter(r => r.isoDate !== null);
         rawInputs = data.inputs.map(i => { let iso = parseToISODate(i.date); return { ...i, isoDate: iso, date: getDisplayDate(iso), input: Number(i.input)||0 }; }).filter(i => i.isoDate !== null);
-
         populateFilters(); applyFilters(); 
-        
         const sb = document.getElementById('sync-status');
         sb.className = "badge bg-success text-white fs-6 ms-3 shadow-sm"; sb.innerHTML = "Live Data 🟢";
         document.getElementById('exportBtn').disabled = false;
@@ -219,8 +214,7 @@
     };
 
     function buildCheckboxList(containerId, items) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = "";
+      const container = document.getElementById(containerId); container.innerHTML = "";
       items.forEach(val => {
         let id = `chk_${containerId}_${val.replace(/[\s\W]+/g, '')}`;
         container.innerHTML += `<div class="form-check"><input class="form-check-input filter-checkbox" type="checkbox" value="${val}" id="${id}" onchange="applyFilters()"><label class="form-check-label" for="${id}">${val}</label></div>`;
@@ -233,15 +227,10 @@
         document.getElementById('filter-date-from').min = allIsoDates[0]; document.getElementById('filter-date-from').max = allIsoDates[allIsoDates.length-1];
         document.getElementById('filter-date-to').min = allIsoDates[0]; document.getElementById('filter-date-to').max = allIsoDates[allIsoDates.length-1];
       }
-      
-      // FIX 1: Combine both Inputs AND Records so models with 0 defects STILL appear in the filters!
       const allLines = [...new Set([...rawRecords.map(r=>r.line), ...rawInputs.map(i=>i.line)])].sort();
       const allModels = [...new Set([...rawRecords.map(r=>r.model), ...rawInputs.map(i=>i.model)])].sort();
       const allCats = [...new Set(rawRecords.map(r=>r.category))].sort();
-
-      buildCheckboxList('filter-line', allLines);
-      buildCheckboxList('filter-model', allModels);
-      buildCheckboxList('filter-category', allCats);
+      buildCheckboxList('filter-line', allLines); buildCheckboxList('filter-model', allModels); buildCheckboxList('filter-category', allCats);
     }
 
     function resetFilters() { 
@@ -250,9 +239,7 @@
       applyFilters(); 
     }
 
-    function getCheckedValues(containerId) {
-      return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb => cb.value);
-    }
+    function getCheckedValues(containerId) { return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb => cb.value); }
 
     function groupData(inputsArr, recordsArr, keyProp) {
       let map = {};
@@ -264,21 +251,17 @@
     function applyFilters() {
       const fFrom = document.getElementById('filter-date-from').value; const fTo = document.getElementById('filter-date-to').value;
       const fLines = getCheckedValues('filter-line'), fModels = getCheckedValues('filter-model'), fCats = getCheckedValues('filter-category');
-
       const filterLogic = (item) => {
         let pass = true;
         if (fFrom) pass = pass && (item.isoDate >= fFrom); if (fTo) pass = pass && (item.isoDate <= fTo);
         if (fLines.length > 0) pass = pass && fLines.includes(item.line); if (fModels.length > 0) pass = pass && fModels.includes(item.model);
         return pass;
       };
-
       filteredRecordsGlobal = rawRecords.filter(r => { let pass = filterLogic(r); if (fCats.length > 0) pass = pass && fCats.includes(r.category); return pass; });
       filteredInputsGlobal = rawInputs.filter(i => filterLogic(i));
-      
       let groupedModel = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'model');
       let groupedDate = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'isoDate');
       let groupedLine = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'line');
-
       updateDashboard(groupedModel, groupedDate, groupedLine);
     }
 
@@ -287,40 +270,74 @@
       let totalDefects = filteredRecordsGlobal.reduce((s, x) => s + x.qty, 0);
       let rejRate = totalInput > 0 ? (totalDefects / totalInput) * 100 : 0; 
       let yieldRate = totalInput > 0 ? ((totalInput - totalDefects) / totalInput) * 100 : 0;
-
       document.getElementById('kpi-input').innerText = totalInput.toLocaleString(); document.getElementById('kpi-defects').innerText = totalDefects.toLocaleString();
       document.getElementById('kpi-yield').innerText = yieldRate.toFixed(2) + "%"; document.getElementById('kpi-rejection').innerText = rejRate.toFixed(2) + "%";
       
+      calculateRedZoneAlerts();
       drawModelSummaryTable(groupedModel); drawTrendChart(groupedDate); drawLineYieldChart(groupedLine); drawModelRejChart(groupedModel); drawParetoChart(totalInput); generateStageWiseTables(groupedModel);
+    }
+
+    // NEW FUNCTION: Calculate which lines are in the Red Zone and for how many days
+    function calculateRedZoneAlerts() {
+      const lines = [...new Set(filteredInputsGlobal.map(i => i.line))];
+      const alertBox = document.getElementById('red-zone-container');
+      const detailsDiv = document.getElementById('red-zone-details');
+      let redZoneContent = "";
+      let criticalCount = 0;
+
+      lines.forEach(lineName => {
+        // Daily yield calculation for this line
+        const lineInputs = filteredInputsGlobal.filter(i => i.line === lineName);
+        const lineRecords = filteredRecordsGlobal.filter(r => r.line === lineName);
+        
+        const dates = [...new Set(lineInputs.map(i => i.isoDate))];
+        let daysBelowTarget = 0;
+
+        dates.forEach(date => {
+          let dayInp = lineInputs.filter(i => i.isoDate === date).reduce((s, x) => s + x.input, 0);
+          let dayDef = lineRecords.filter(r => r.isoDate === date).reduce((s, x) => s + x.qty, 0);
+          let dayYield = dayInp > 0 ? ((dayInp - dayDef) / dayInp) * 100 : 100;
+          if (dayYield < TARGET_YIELD) daysBelowTarget++;
+        });
+
+        // Overall Yield check for the line
+        let totalInp = lineInputs.reduce((s, x) => s + x.input, 0);
+        let totalDef = lineRecords.reduce((s, x) => s + x.qty, 0);
+        let overallLineYield = totalInp > 0 ? ((totalInp - totalDef) / totalInp) * 100 : 100;
+
+        if (overallLineYield < TARGET_YIELD || daysBelowTarget > 0) {
+          criticalCount++;
+          redZoneContent += `
+            <div class="p-2 border rounded bg-white shadow-sm">
+              <strong class="text-dark">${lineName}:</strong> 
+              <span class="badge bg-danger">${overallLineYield.toFixed(2)}% Yield</span>
+              <span class="ms-1 text-muted small">| <b>${daysBelowTarget} days</b> below 97%</span>
+            </div>`;
+        }
+      });
+
+      if (criticalCount > 0) {
+        alertBox.classList.remove('d-none');
+        detailsDiv.innerHTML = redZoneContent;
+      } else {
+        alertBox.classList.add('d-none');
+      }
     }
 
     function drawModelSummaryTable(groupedModel) {
       let tbody = document.querySelector('#model-summary-table tbody'); tbody.innerHTML = '';
       let models = Object.keys(groupedModel).sort();
       if(models.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-danger fw-bold py-3">No data available.</td></tr>'; return; }
-
       let html = '';
       models.forEach(m => {
           let data = groupedModel[m];
           let fpy = data.input > 0 ? (((data.input - data.defects) / data.input) * 100).toFixed(2) + '%' : '0.00%';
           let rej = data.input > 0 ? ((data.defects / data.input) * 100).toFixed(2) + '%' : '0.00%';
-          
-          // FIX 2: Group Top Defect by both Defect Name AND Specific Issue (Analysis) to find true root cause
-          let defMap = {}; 
-          data.records.forEach(r => { 
-            let key = `${r.defect} (${r.analysis})`; 
-            defMap[key] = (defMap[key]||0) + r.qty; 
-          });
-          
+          let defMap = {}; data.records.forEach(r => { let key = `${r.defect} (${r.analysis})`; defMap[key] = (defMap[key]||0) + r.qty; });
           let sortedDefects = Object.entries(defMap).sort((a, b) => b[1] - a[1]);
           let topDefectKey = sortedDefects.length > 0 ? sortedDefects[0][0] : "None";
           let topQty = sortedDefects.length > 0 ? sortedDefects[0][1] : 0;
-          
-          // Handle models that have 0 defects gracefully
-          let reasonDisplay = topQty > 0 
-            ? `<span class="badge bg-danger">${topDefectKey}</span> <span class="text-muted small ms-1">(${topQty} defects)</span>` 
-            : `<span class="text-success fw-bold">Zero Defects</span>`;
-
+          let reasonDisplay = topQty > 0 ? `<span class="badge bg-danger">${topDefectKey}</span> <span class="text-muted small ms-1">(${topQty} defects)</span>` : `<span class="text-success fw-bold">Zero Defects</span>`;
           html += `<tr><td class="text-primary fw-bold text-start ps-3">${m}</td><td>${data.input.toLocaleString()}</td><td class="text-danger">${data.defects.toLocaleString()}</td><td class="text-success fw-bold">${fpy}</td><td class="text-danger fw-bold">${rej}</td><td class="text-start ps-3">${reasonDisplay}</td></tr>`;
       });
       tbody.innerHTML = html;
@@ -332,10 +349,61 @@
       if (charts['trendChart']) charts['trendChart'].destroy(); charts['trendChart'] = new Chart(document.getElementById('trendChart'), { type: 'line', data: { labels: displayDates, datasets: [{ label: 'Rejection Trend (%)', data: rates, borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointRadius: 4, datalabels: { formatter: (val) => val + '%' } }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Date-wise Rejection Trend', font: {size: 15} }, legend:{display: false} } } }); 
     }
     
+    // UPDATED: Line Yield Chart now includes 97% Target Line and Red-Zone Point Highlighting
     function drawLineYieldChart(groupedLine) { 
       let lines = Object.keys(groupedLine).sort(); 
-      let yields = lines.map(l => groupedLine[l].input > 0 ? (((groupedLine[l].input - groupedLine[l].defects) / groupedLine[l].input) * 100).toFixed(2) : 0); 
-      if (charts['lineYieldChart']) charts['lineYieldChart'].destroy(); charts['lineYieldChart'] = new Chart(document.getElementById('lineYieldChart'), { type: 'line', data: { labels: lines, datasets: [{ label: 'Line Yield (FPY %)', data: yields, borderColor: '#198754', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointRadius: 5, datalabels: { formatter: (val) => val + '%' } }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Line-Wise Yield (FPY)', font: {size: 15} }, legend:{display: false} } } }); 
+      let yields = lines.map(l => {
+        let y = groupedLine[l].input > 0 ? (((groupedLine[l].input - groupedLine[l].defects) / groupedLine[l].input) * 100) : 0;
+        return y.toFixed(2);
+      }); 
+      
+      // Target line dataset (constant 97%)
+      let targetLineData = lines.map(() => TARGET_YIELD);
+
+      if (charts['lineYieldChart']) charts['lineYieldChart'].destroy(); 
+      charts['lineYieldChart'] = new Chart(document.getElementById('lineYieldChart'), { 
+        type: 'line', 
+        data: { 
+          labels: lines, 
+          datasets: [
+            { 
+              label: 'Line Yield (FPY %)', 
+              data: yields, 
+              borderColor: '#198754', 
+              backgroundColor: 'rgba(25, 135, 84, 0.1)',
+              fill: false, 
+              tension: 0.1, 
+              borderWidth: 3, 
+              pointRadius: 6,
+              // Color points RED if below 97%
+              pointBackgroundColor: yields.map(v => v < TARGET_YIELD ? '#dc3545' : '#198754'),
+              pointBorderColor: yields.map(v => v < TARGET_YIELD ? '#dc3545' : '#198754'),
+              datalabels: { formatter: (val) => val + '%' } 
+            },
+            {
+              label: 'Target (97%)',
+              data: targetLineData,
+              borderColor: '#dc3545',
+              borderWidth: 2,
+              borderDash: [5, 5], // Dashed red line
+              fill: false,
+              pointRadius: 0,
+              datalabels: { display: false }
+            }
+          ] 
+        }, 
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: false, 
+          plugins: { 
+            title: { display: true, text: 'Line-Wise Yield (Red Points = Below 97% Target)', font: {size: 15} }, 
+            legend:{ display: true, position: 'bottom' } 
+          },
+          scales: {
+            y: { min: 80, max: 100 }
+          }
+        } 
+      }); 
     }
     
     function drawModelRejChart(groupedModel) { 
@@ -359,22 +427,13 @@
       const container = document.getElementById('reports-container'); container.innerHTML = ""; 
       let models = Object.keys(groupedModel).sort();
       if (models.length === 0) { container.innerHTML = "<p class='text-danger fw-bold ms-3'>No data found.</p>"; return; }
-      
       let htmlString = "";
       models.forEach(modelName => { 
         let data = groupedModel[modelName];
         let mRejRate = data.input > 0 ? ((data.defects / data.input) * 100).toFixed(2) + "%" : "0.00%"; 
         let mFpy = data.input > 0 ? (((data.input - data.defects) / data.input) * 100).toFixed(2) + "%" : "0.00%"; 
-        
-        let stages = {}; 
-        data.records.forEach(r => { 
-          if (!stages[r.stage]) stages[r.stage] = {}; let issueKey = r.defect + "|" + r.analysis; 
-          if (!stages[r.stage][issueKey]) stages[r.stage][issueKey] = { defect: r.defect, analysis: r.analysis, qty: 0 }; 
-          stages[r.stage][issueKey].qty += r.qty; 
-        }); 
-        
+        let stages = {}; data.records.forEach(r => { if (!stages[r.stage]) stages[r.stage] = {}; let issueKey = r.defect + "|" + r.analysis; if (!stages[r.stage][issueKey]) stages[r.stage][issueKey] = { defect: r.defect, analysis: r.analysis, qty: 0 }; stages[r.stage][issueKey].qty += r.qty; }); 
         htmlString += `<table class="report-table"><thead><tr class="header-yellow"><th class="fs-5">Model</th><th colspan="4" class="fs-5" style="color: #d32f2f;">${modelName}</th></tr><tr class="header-blue"><th colspan="2" class="text-start text-primary fs-6">Input: ${data.input}</th><th class="text-danger fs-6">Rej Rate: ${mRejRate}</th><th colspan="2" class="text-success fs-6">FPY: ${mFpy}</th></tr><tr class="header-yellow"><th>Stage</th><th>Defect Name</th><th>Total Defect Qty</th><th>Total Defect Rate</th><th>Analysis</th></tr></thead><tbody>`; 
-        
         if (Object.keys(stages).length === 0) {
             htmlString += `<tr><td colspan="5" class="text-center fw-bold text-success py-3">No defects recorded for this model.</td></tr>`;
         } else {
@@ -392,33 +451,23 @@
       container.innerHTML = htmlString;
     }
 
-    // =========================================================================
-    // EXCELJS EXPORT SCRIPT (Optimized)
-    // =========================================================================
     async function exportToExcelJS() {
       if (filteredRecordsGlobal.length === 0) { alert("No data to export!"); return; }
       const exportBtn = document.getElementById('exportBtn'); const sb = document.getElementById('sync-status');
       exportBtn.disabled = true; exportBtn.innerHTML = "⏳ Generating..."; sb.className = "badge bg-primary text-white fs-6 ms-3 shadow-sm"; sb.innerHTML = "Processing Excel File... ⏳";
-      
       setTimeout(async () => {
         try {
           const wb = new ExcelJS.Workbook();
           const yellowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } }; const blueFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }; const orangeFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE4D6' } }; const lightRedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4CCCC' } }; const lightGreenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } }; const borderStyle = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
           function styleRow(row, fill, isPercent = false, isBold = true, textColor = 'FF000000') { row.eachCell((cell) => { if (fill) cell.fill = fill; cell.border = borderStyle; cell.font = { bold: isBold, color: { argb: textColor } }; if (isPercent) cell.numFmt = '0.00%'; }); }
-
           let logoId = null; const logoBase64 = getBase64Image('companyLogo'); if (logoBase64) logoId = wb.addImage({ base64: logoBase64, extension: 'png' });
           function setupSheetHeader(ws, title) { if (logoId) ws.addImage(logoId, 'A1:C3'); ws.getCell('D2').value = title; ws.getCell('D2').font = { size: 16, bold: true }; let cell = ws.getCell('D3'); cell.value = { text: '🔙 Back to Index', hyperlink: '#\'Index\'!A1' }; cell.font = { color: { argb: 'FF0000FF' }, underline: true, bold: true }; return 5; }
-
           let isoDates = [...new Set(filteredRecordsGlobal.map(r => r.isoDate))].sort(); let dates = isoDates.map(d => getDisplayDate(d));
           let models = [...new Set([...filteredRecordsGlobal.map(r=>r.model), ...filteredInputsGlobal.map(i=>i.model)])].sort(); 
           let lines = [...new Set([...filteredRecordsGlobal.map(r=>r.line), ...filteredInputsGlobal.map(i=>i.line)])].sort();
-
-          // 0. INDEX
           const wsIndex = wb.addWorksheet('Index'); wsIndex.getColumn(1).width = 40; if (logoId) wsIndex.addImage(logoId, 'A1:C3'); wsIndex.getCell('A4').value = "Master Quality Report Navigation"; wsIndex.getRow(4).font = { size: 16, bold: true };
           let links = ['Overall Model Summary', 'Overall Line Summary', 'Defect Monitoring', 'Stage-Wise Reports', 'Dashboard Charts', 'Top Defects', ...lines];
           links.forEach((sheetName, i) => { let safeName = sheetName.substring(0, 31).replace(/[\[\]\*\/\\\?]/g, ''); let cell = wsIndex.getCell(`A${i+6}`); cell.value = { text: `▶ Go to: ${safeName}`, hyperlink: `#\'${safeName}\'!A1` }; cell.font = { color: { argb: 'FF0000FF' }, underline: true, size: 12 }; });
-
-          // 1. GENERATE STAGE-WISE REPORTS 
           const wsStageWise = wb.addWorksheet('Stage-Wise Reports'); setupSheetHeader(wsStageWise, 'Stage-Wise Model Summary Reports'); wsStageWise.columns.forEach(col => col.width = 25); wsStageWise.getColumn(1).width = 15; wsStageWise.getColumn(5).width = 40;
           let currentStageRow = 5; let modelLinkMap = {};
           models.forEach(modelName => {
@@ -429,38 +478,26 @@
             let stages = {}; mRecords.forEach(r => { if (!stages[r.stage]) stages[r.stage] = {}; let issueKey = r.defect + "|" + r.analysis; if (!stages[r.stage][issueKey]) stages[r.stage][issueKey] = { defect: r.defect, analysis: r.analysis, qty: 0 }; stages[r.stage][issueKey].qty += r.qty; });
             Object.keys(stages).forEach(stageName => { let issues = Object.values(stages[stageName]).sort((a, b) => b.qty - a.qty); let startMergeRow = currentStageRow; issues.forEach((issue, index) => { let issueRate = mTotalInput > 0 ? ((issue.qty / mTotalInput) * 100).toFixed(2) + "%" : "0.00%"; let rData = wsStageWise.getRow(currentStageRow++); rData.values = [index === 0 ? stageName : "", issue.defect, issue.qty, issueRate, issue.analysis]; styleRow(rData, null, false, true); rData.getCell(3).font = { bold: true, color: { argb: 'FFD32F2F' } }; rData.getCell(4).font = { bold: true, color: { argb: 'FFD32F2F' } }; rData.getCell(5).font = { bold: false, color: { argb: 'FF555555' } }; rData.alignment = { horizontal: 'center', vertical: 'middle' }; rData.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' }; }); if (issues.length > 1) { wsStageWise.mergeCells(`A${startMergeRow}:A${currentStageRow-1}`); } }); currentStageRow += 2; 
           });
-
-          // 2. OVERALL MODEL SUMMARY
           const wsOverall = wb.addWorksheet('Overall Model Summary'); let startRowM = setupSheetHeader(wsOverall, 'Overall Model Summary'); let mHRow = wsOverall.getRow(startRowM); mHRow.values = ["Category", ...models, "Total"]; styleRow(mHRow, lightRedFill, false, true, 'FF990033');
           mHRow.eachCell((cell, colNum) => { if(models.includes(cell.value)) { cell.value = { text: cell.value, hyperlink: `#'Stage-Wise Reports'!${modelLinkMap[cell.value]}` }; cell.font = { color: { argb: 'FF0000FF' }, underline: true, bold: true }; } });
           let rProd = ["Production Qty"], rProc = ["Process Defect Qty"], rRmd = ["RMD Defect Qty"], rSmt = ["SMT Defect Qty"], rTotalDef = ["Total Defects Qty"]; let rProcRate = ["Process Rej. Rate%"], rRmdRate = ["RMD Rej. Rate%"], rSmtRate = ["SMT Rej. Rate%"], rTotalRate = ["Total Rejection Rate%"], rFpy = ["FPY"]; let gtM = { prod:0, proc:0, rmd:0, smt:0, def:0 };
           models.forEach(m => { let inps = filteredInputsGlobal.filter(i => i.model === m).reduce((s, x) => s + x.input, 0); let procs = filteredRecordsGlobal.filter(r => r.model === m && r.category.toLowerCase().includes('process')).reduce((s, x) => s + x.qty, 0); let rmds = filteredRecordsGlobal.filter(r => r.model === m && r.category.toLowerCase().includes('rmd')).reduce((s, x) => s + x.qty, 0); let smts = filteredRecordsGlobal.filter(r => r.model === m && r.category.toLowerCase().includes('smt')).reduce((s, x) => s + x.qty, 0); let defs = filteredRecordsGlobal.filter(r => r.model === m).reduce((s, x) => s + x.qty, 0); gtM.prod+=inps; gtM.proc+=procs; gtM.rmd+=rmds; gtM.smt+=smts; gtM.def+=defs; rProd.push(inps); rProc.push(procs); rRmd.push(rmds); rSmt.push(smts); rTotalDef.push(defs); rProcRate.push(inps ? procs/inps : 0); rRmdRate.push(inps ? rmds/inps : 0); rSmtRate.push(inps ? smts/inps : 0); rTotalRate.push(inps ? defs/inps : 0); rFpy.push(inps ? (inps-defs)/inps : 0); }); rProd.push(gtM.prod); rProc.push(gtM.proc); rRmd.push(gtM.rmd); rSmt.push(gtM.smt); rTotalDef.push(gtM.def); rProcRate.push(gtM.prod ? gtM.proc/gtM.prod : 0); rRmdRate.push(gtM.prod ? gtM.rmd/gtM.prod : 0); rSmtRate.push(gtM.prod ? gtM.smt/gtM.prod : 0); rTotalRate.push(gtM.prod ? gtM.def/gtM.prod : 0); rFpy.push(gtM.prod ? (gtM.prod-gtM.def)/gtM.prod : 0);
           wsOverall.getRow(startRowM+1).values = rProd; wsOverall.getRow(startRowM+2).values = rProc; wsOverall.getRow(startRowM+3).values = rRmd; wsOverall.getRow(startRowM+4).values = rSmt; wsOverall.getRow(startRowM+5).values = rTotalDef; wsOverall.getRow(startRowM+6).values = rProcRate; wsOverall.getRow(startRowM+7).values = rRmdRate; wsOverall.getRow(startRowM+8).values = rSmtRate; wsOverall.getRow(startRowM+9).values = rTotalRate; wsOverall.getRow(startRowM+10).values = rFpy; styleRow(wsOverall.getRow(startRowM+1), orangeFill); for(let i=startRowM+2; i<=startRowM+5; i++) styleRow(wsOverall.getRow(i), blueFill); for(let i=startRowM+6; i<=startRowM+10; i++) styleRow(wsOverall.getRow(i), yellowFill, true); wsOverall.columns.forEach(column => column.width = 16);
-
-          // 3. OVERALL LINE SUMMARY
           const wsLineSum = wb.addWorksheet('Overall Line Summary'); let startRowB = setupSheetHeader(wsLineSum, 'Overall Line Summary'); let months = [...new Set(dates.map(d => { let p = d.split('-'); return p.length > 1 ? p[1] : d; }))]; let lHRow = wsLineSum.getRow(startRowB); lHRow.values = ["Category", ...months, ...lines, "Total"]; styleRow(lHRow, lightRedFill, false, true, 'FF990033');
           lHRow.eachCell((cell, colNum) => { if(lines.includes(cell.value)) { let safeName = cell.value.substring(0, 31).replace(/[\[\]\*\/\\\?]/g, ''); cell.value = { text: cell.value, hyperlink: `#'${safeName}'!A1` }; cell.font = { color: { argb: 'FF0000FF' }, underline: true, bold: true }; } });
           let l_rProd = ["Production Qty"], l_rProc = ["Process Defect Qty"], l_rRmd = ["RMD Defect Qty"], l_rSmt = ["SMT Defect Qty"], l_rTotalDef = ["Total Defects Qty"]; let l_rProcRate = ["Process Rej. Rate%"], l_rRmdRate = ["RMD Rej. Rate%"], l_rSmtRate = ["SMT Rej. Rate%"], l_rTotalRate = ["Total Rejection Rate%"], l_rFpy = ["FPY"]; let l_gt = { prod:0, proc:0, rmd:0, smt:0, def:0 };
           function calcAndPushCol(key, type) { let inps = 0, procs = 0, rmds = 0, smts = 0, defs = 0; if (type === 'month') { inps = filteredInputsGlobal.filter(i => i.date.includes(key)).reduce((s, x) => s + x.input, 0); procs = filteredRecordsGlobal.filter(r => r.date.includes(key) && r.category.toLowerCase().includes('process')).reduce((s, x) => s + x.qty, 0); rmds = filteredRecordsGlobal.filter(r => r.date.includes(key) && r.category.toLowerCase().includes('rmd')).reduce((s, x) => s + x.qty, 0); smts = filteredRecordsGlobal.filter(r => r.date.includes(key) && r.category.toLowerCase().includes('smt')).reduce((s, x) => s + x.qty, 0); defs = filteredRecordsGlobal.filter(r => r.date.includes(key)).reduce((s, x) => s + x.qty, 0); } else if (type === 'line') { inps = filteredInputsGlobal.filter(i => i.line === key).reduce((s, x) => s + x.input, 0); procs = filteredRecordsGlobal.filter(r => r.line === key && r.category.toLowerCase().includes('process')).reduce((s, x) => s + x.qty, 0); rmds = filteredRecordsGlobal.filter(r => r.line === key && r.category.toLowerCase().includes('rmd')).reduce((s, x) => s + x.qty, 0); smts = filteredRecordsGlobal.filter(r => r.line === key && r.category.toLowerCase().includes('smt')).reduce((s, x) => s + x.qty, 0); defs = filteredRecordsGlobal.filter(r => r.line === key).reduce((s, x) => s + x.qty, 0); l_gt.prod+=inps; l_gt.proc+=procs; l_gt.rmd+=rmds; l_gt.smt+=smts; l_gt.def+=defs; } l_rProd.push(inps); l_rProc.push(procs); l_rRmd.push(rmds); l_rSmt.push(smts); l_rTotalDef.push(defs); l_rProcRate.push(inps ? procs/inps : 0); l_rRmdRate.push(inps ? rmds/inps : 0); l_rSmtRate.push(inps ? smts/inps : 0); l_rTotalRate.push(inps ? defs/inps : 0); l_rFpy.push(inps ? (inps-defs)/inps : 0); }
           months.forEach(m => calcAndPushCol(m, 'month')); lines.forEach(l => calcAndPushCol(l, 'line')); l_rProd.push(l_gt.prod); l_rProc.push(l_gt.proc); l_rRmd.push(l_gt.rmd); l_rSmt.push(l_gt.smt); l_rTotalDef.push(l_gt.def); l_rProcRate.push(l_gt.prod ? l_gt.proc/l_gt.prod : 0); l_rRmdRate.push(l_gt.prod ? l_gt.rmd/l_gt.prod : 0); l_rSmtRate.push(l_gt.prod ? l_gt.smt/l_gt.prod : 0); l_rTotalRate.push(l_gt.prod ? l_gt.def/l_gt.prod : 0); l_rFpy.push(l_gt.prod ? (l_gt.prod-l_gt.def)/l_gt.prod : 0);
           wsLineSum.getRow(startRowB+1).values = l_rProd; wsLineSum.getRow(startRowB+2).values = l_rProc; wsLineSum.getRow(startRowB+3).values = l_rRmd; wsLineSum.getRow(startRowB+4).values = l_rSmt; wsLineSum.getRow(startRowB+5).values = l_rTotalDef; wsLineSum.getRow(startRowB+6).values = l_rProcRate; wsLineSum.getRow(startRowB+7).values = l_rRmdRate; wsLineSum.getRow(startRowB+8).values = l_rSmtRate; wsLineSum.getRow(startRowB+9).values = l_rTotalRate; wsLineSum.getRow(startRowB+10).values = l_rFpy; styleRow(wsLineSum.getRow(startRowB+1), orangeFill); for(let i=startRowB+2; i<=startRowB+5; i++) styleRow(wsLineSum.getRow(i), blueFill); for(let i=startRowB+6; i<=startRowB+10; i++) styleRow(wsLineSum.getRow(i), yellowFill, true); wsLineSum.columns.forEach(column => column.width = 14);
-
-          // 4. DEFECT MONITORING
           const wsMonitor = wb.addWorksheet('Defect Monitoring'); let startRowM_m = setupSheetHeader(wsMonitor, 'Defect Monitoring'); let headerRow = wsMonitor.getRow(startRowM_m); headerRow.values = ["Defect Monitoring", ...dates, "Total"]; styleRow(headerRow, lightRedFill); headerRow.getCell(1).fill = blueFill; headerRow.getCell(1).font = { bold: true, color: { argb: 'FF0000FF'}, size: 14 };
           let mTotalDef=[], mTotalProd=[]; isoDates.forEach(isoD => { mTotalDef.push(filteredRecordsGlobal.filter(r => r.isoDate === isoD).reduce((s,x) => s+x.qty, 0)); mTotalProd.push(filteredInputsGlobal.filter(i => i.isoDate === isoD).reduce((s,x) => s+x.input, 0)); }); let grandDef = mTotalDef.reduce((a,b)=>a+b,0), grandProd = mTotalProd.reduce((a,b)=>a+b,0); let currentRow = startRowM_m + 1;
           lines.forEach(l => { let row = [l], lTot = 0; isoDates.forEach(isoD => { let qty = filteredRecordsGlobal.filter(x => x.line === l && x.isoDate === isoD).reduce((s, x) => s + x.qty, 0); row.push(qty); lTot += qty; }); row.push(lTot); let r = wsMonitor.getRow(currentRow++); r.values = row; r.eachCell(c => c.border = borderStyle); r.getCell(1).font = { bold: true, color: {argb: 'FF0000FF'} }; });
           let rDef = wsMonitor.getRow(currentRow++); rDef.values = ["Total Defects", ...mTotalDef, grandDef]; let rProd2 = wsMonitor.getRow(currentRow++); rProd2.values = ["Total Prod", ...mTotalProd, grandProd]; let rateArr = ["Def Percentage"], fpyArr = ["Line FPY"]; mTotalDef.forEach((dTot, idx) => { let pTot = mTotalProd[idx]; rateArr.push(pTot ? dTot/pTot : 0); fpyArr.push(pTot ? (pTot-dTot)/pTot : 0); }); rateArr.push(grandProd ? grandDef/grandProd : 0); fpyArr.push(grandProd ? (grandProd-grandDef)/grandProd : 0); let rRate = wsMonitor.getRow(currentRow++); rRate.values = rateArr; let rFpy2 = wsMonitor.getRow(currentRow++); rFpy2.values = fpyArr; styleRow(rDef, lightGreenFill); styleRow(rProd2, lightGreenFill); styleRow(rRate, lightGreenFill, true); styleRow(rFpy2, lightGreenFill, true); wsMonitor.getColumn(1).width = 20;
-
-          // 5. DASHBOARD CHARTS 
           const wsCharts = wb.addWorksheet('Dashboard Charts'); setupSheetHeader(wsCharts, 'Dashboard Snapshot Charts');
           function addChartImage(ws, canvasId, tl_col, tl_row, br_col, br_row) { const canvas = document.getElementById(canvasId); if(canvas) { const ctx = canvas.getContext('2d'); ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); const imgData = canvas.toDataURL('image/png'); const imageId = wb.addImage({ base64: imgData, extension: 'png' }); ws.addImage(imageId, `${tl_col}${tl_row}:${br_col}${br_row}`); } }
           addChartImage(wsCharts, 'trendChart', 'B', 7, 'J', 23); addChartImage(wsCharts, 'lineYieldChart', 'L', 7, 'T', 23); addChartImage(wsCharts, 'modelRejChart', 'B', 25, 'T', 41); addChartImage(wsCharts, 'paretoChart', 'B', 43, 'T', 63);
-
-          // 6. TOP DEFECTS 
           const wsTop = wb.addWorksheet('Top Defects'); let startRowT = setupSheetHeader(wsTop, 'Top Defects List'); wsTop.getRow(startRowT).values = ["Defects", "Qty"]; styleRow(wsTop.getRow(startRowT), lightRedFill);
           let defMap = {}; filteredRecordsGlobal.forEach(r => defMap[r.defect] = (defMap[r.defect] || 0) + r.qty); let currT = startRowT + 1; Object.keys(defMap).sort((a,b) => defMap[b] - defMap[a]).forEach(k => { let r = wsTop.getRow(currT++); r.values = [k, defMap[k]]; r.eachCell(c => c.border = borderStyle); }); wsTop.getColumn(1).width = 25;
-
-          // 7+. INDIVIDUAL LINE SHEETS
           let defectsList = [...new Set(filteredRecordsGlobal.map(r => r.defect))].sort();
           lines.forEach(line => {
             let safeLineName = line.substring(0, 31).replace(/[\[\]\*\/\\\?]/g, ''); const wsLine = wb.addWorksheet(safeLineName); let startRowL = setupSheetHeader(wsLine, `Line Report: ${safeLineName}`); wsLine.getRow(startRowL).values = ["Date", ...dates, "Total"];
@@ -471,7 +508,6 @@
             styleRow(wsLine.getRow(startRowL), lightRedFill); styleRow(wsLine.getRow(startRowL+1), orangeFill); for(let i=startRowL+2; i<=startRowL+5; i++) styleRow(wsLine.getRow(i), blueFill); for(let i=startRowL+6; i<=startRowL+10; i++) styleRow(wsLine.getRow(i), yellowFill, true);
             let currR = startRowL+11; defectsList.forEach(def => { let r = [def]; let rTot = 0; isoDates.forEach(isoD => { let q = filteredRecordsGlobal.filter(x => x.line === line && x.isoDate === isoD && x.defect === def).reduce((s, x) => s + x.qty, 0); r.push(q); rTot += q; }); r.push(rTot); let rowAdded = wsLine.getRow(currR++); rowAdded.values = r; rowAdded.eachCell(c => c.border = borderStyle); }); wsLine.getColumn(1).width = 25;
           });
-
           const buffer = await wb.xlsx.writeBuffer(); saveAs(new Blob([buffer]), "Master_Quality_Report.xlsx");
           sb.className = "badge bg-success text-white fs-6 ms-3 shadow-sm"; sb.innerHTML = "Export Complete ✅"; exportBtn.innerHTML = '<span style="font-size: 1.1rem; margin-right: 5px;">📥</span> Export Master Report'; exportBtn.disabled = false; setTimeout(() => sb.innerHTML = "Live Data 🟢", 3000);
         } catch (error) {
