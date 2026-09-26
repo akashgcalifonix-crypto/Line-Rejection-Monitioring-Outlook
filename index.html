@@ -7,9 +7,6 @@
   <meta name="description" content="Production Quality &amp; Yield Dashboard with Defect Pareto Analysis, Stage-Wise Reports, Line &amp; Date Defect Review, and Line-Wise Top 5 CAPA Action Plan." />
   <meta property="og:title" content="Quality BI Dashboard" />
   <meta property="og:description" content="Production Quality &amp; Yield Dashboard with Defect Pareto Analysis, Stage-Wise Reports, Line &amp; Date Defect Review, and Line-Wise Top 5 CAPA Action Plan." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,403 +15,48 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   
   <style>
-    :root {
-      --bg-color: #f1f5f9;
-      --card-bg: #ffffff;
-      --surface-border: #e2e8f0;
-      --surface-border-subtle: #cbd5e1;
-      --primary: #1d4ed8;
-      --primary-hover: #1e40af;
-      --primary-subtle: #eff6ff;
-      --danger: #dc2626;
-      --danger-subtle: #fef2f2;
-      --success: #15803d;
-      --success-subtle: #f0fdf4;
-      --warning: #b45309;
-      --warning-subtle: #fffbeb;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --text-light: #94a3b8;
-      --brand-navy: #091e42;
-    }
+    :root { --bg-color: #f0f2f5; --card-bg: #ffffff; --primary: #0d6efd; --danger: #dc3545; --success: #198754; --warning: #ffc107; }
+    body { background-color: var(--bg-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 50px; }
 
-    body {
-      background-color: var(--bg-color);
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: var(--text-main);
-      padding-bottom: 70px;
-      -webkit-font-smoothing: antialiased;
-      line-height: 1.5;
-    }
+    .dashboard-header { background: var(--card-bg); padding: 15px 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; }
+    .brand-title { font-size: 1.5rem; font-weight: 800; color: #2b2b2b; letter-spacing: -0.5px;}
+    .kpi-card { background: var(--card-bg); border-radius: 12px; padding: 20px 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); text-align: left; position: relative; overflow: hidden; border: none; transition: transform 0.2s ease; }
+    .kpi-card:hover { transform: translateY(-3px); }
+    .kpi-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+    .kpi-input::before { background-color: var(--primary); } .kpi-defects::before { background-color: var(--danger); }
+    .kpi-yield::before { background-color: var(--success); } .kpi-rejection::before { background-color: var(--warning); }
+    .kpi-title { font-size: 0.85rem; color: #828a92; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-value { font-size: 2rem; font-weight: 800; color: #212529; margin-top: 5px; line-height: 1; }
 
-    .tabular-nums {
-      font-variant-numeric: tabular-nums;
-      font-family: 'JetBrains Mono', monospace;
-    }
+    /* Red Zone Alert Style */
+    .alert-red-zone { background: #fff5f5; border-left: 5px solid var(--danger); border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-    /* Top Executive Header */
-    .dashboard-header {
-      background: linear-gradient(135deg, #091e42 0%, #1e293b 100%);
-      padding: 20px 28px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 25px -5px rgba(9, 30, 66, 0.25);
-      margin-bottom: 22px;
-      color: #ffffff;
-    }
-
-    .brand-title {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #ffffff;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .pulse-dot {
-      display: inline-block;
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background-color: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-      animation: pulse-ring 1.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
-    }
-    @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-      70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .header-btn {
-      font-size: 0.84rem;
-      font-weight: 700;
-      padding: 8px 16px;
-      border-radius: 10px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid transparent;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.12);
-    }
-    .header-btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-    }
-
-    /* Tab Navigation */
-    .dashboard-tabs {
-      display: flex;
-      gap: 8px;
-      background: #e2e8f0;
-      padding: 5px;
-      border-radius: 12px;
-      margin-bottom: 22px;
-      overflow-x: auto;
-    }
-    .tab-btn {
-      padding: 8px 18px;
-      font-size: 0.88rem;
-      font-weight: 700;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: #475569;
-      transition: all 0.15s ease;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .tab-btn:hover {
-      color: #0f172a;
-      background: rgba(255, 255, 255, 0.5);
-    }
-    .tab-btn.active {
-      background: #ffffff;
-      color: var(--primary);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-    }
-
-    /* KPI Cards */
-    .kpi-card {
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 20px 22px;
-      border: 1px solid var(--surface-border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-      height: 100%;
-    }
-    .kpi-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-    }
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 5px;
-    }
-    .kpi-input::before { background-color: var(--primary); }
-    .kpi-defects::before { background-color: var(--danger); }
-    .kpi-yield::before { background-color: var(--success); }
-    .kpi-rejection::before { background-color: var(--warning); }
+    .chart-container, .filter-bar { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); margin-bottom: 20px; position: relative; }
     
-    .kpi-title {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .kpi-value {
-      font-size: 2.1rem;
-      font-weight: 800;
-      color: var(--text-main);
-      margin-top: 6px;
-      line-height: 1.1;
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .kpi-subtext {
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+    .checkbox-list { height: 110px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 8px; padding: 10px; background: #fff; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
+    .checkbox-list label { width: 100%; cursor: pointer; font-weight: 600; font-size: 0.9rem; padding: 2px 0; color: #333;}
+    .checkbox-list label:hover { background-color: #f8f9fa; }
+    .checkbox-list input[type="checkbox"] { margin-right: 8px; transform: scale(1.1); cursor: pointer;}
+    
+    .date-picker-box { background: #f8f9fa; border-radius: 8px; padding: 12px; border: 1px solid #ced4da; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;}
+    .date-picker-box input { border: 1px solid #ddd; border-radius: 4px; background: #fff; font-weight: 700; color: #333; padding: 4px 8px;}
+    @media (max-width: 768px) {
+      .date-picker-box { flex-direction: column; align-items: flex-start; }
+      .date-picker-box input { width: 100%; margin-top: 5px; margin-bottom: 10px;}
     }
 
-    /* Red Zone Alert */
-    .alert-red-zone {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-left: 5px solid var(--danger);
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 22px;
-      box-shadow: 0 2px 6px rgba(220, 38, 38, 0.05);
-    }
-
-    .chart-container, .filter-bar, .content-card {
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 22px;
-      border: 1px solid var(--surface-border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-      margin-bottom: 22px;
-      position: relative;
-    }
-
-    /* Filter inputs & lists */
-    .filter-header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-    .filter-search-box {
-      font-size: 0.75rem;
-      padding: 4px 8px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      margin-bottom: 6px;
-      width: 100%;
-    }
-    .checkbox-list {
-      height: 115px;
-      overflow-y: auto;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 10px;
-      background: #ffffff;
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
-    }
-    .checkbox-list label {
-      width: 100%;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.82rem;
-      padding: 3px 0;
-      color: #334155;
-    }
-    .checkbox-list label:hover {
-      background-color: #f1f5f9;
-      border-radius: 4px;
-    }
-    .checkbox-list input[type="checkbox"] {
-      margin-right: 8px;
-      cursor: pointer;
-      accent-color: var(--primary);
-    }
-
-    .date-picker-box {
-      background: #f8fafc;
-      border-radius: 10px;
-      padding: 10px 14px;
-      border: 1px solid #cbd5e1;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .date-picker-box input {
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #ffffff;
-      font-weight: 700;
-      color: var(--text-main);
-      padding: 4px 8px;
-      font-size: 0.82rem;
-      width: 100%;
-    }
-
-    /* Clean Enterprise Tables */
-    .custom-dashboard-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      font-size: 0.88rem;
-    }
-    .custom-dashboard-table thead th {
-      background-color: #f8fafc;
-      color: #475569;
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 0.72rem;
-      letter-spacing: 0.05em;
-      padding: 12px 14px;
-      border-bottom: 2px solid var(--surface-border);
-      border-top: 1px solid var(--surface-border);
-    }
-    .custom-dashboard-table tbody td {
-      padding: 11px 14px;
-      border-bottom: 1px solid var(--surface-border);
-      color: #1e293b;
-      vertical-align: middle;
-      font-variant-numeric: tabular-nums;
-    }
-    .custom-dashboard-table tbody tr:hover {
-      background-color: #f8fafc;
-    }
-
-    /* Stage-wise Report Table */
-    .report-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      margin-bottom: 26px;
-      background-color: #ffffff;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid var(--surface-border);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }
-    .report-table th, .report-table td {
-      padding: 10px 14px;
-      vertical-align: middle;
-      border-bottom: 1px solid #f1f5f9;
-      border-right: 1px solid #f1f5f9;
-    }
-    .report-table th:last-child, .report-table td:last-child {
-      border-right: none;
-    }
-    .report-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .header-yellow th {
-      background-color: #fef3c7;
-      color: #78350f;
-      font-weight: 800;
-      text-align: center;
-      font-size: 0.92rem;
-      letter-spacing: 0.02em;
-    }
-    .header-blue th {
-      background-color: #e0f2fe;
-      color: #0369a1;
-      font-weight: 800;
-      text-align: center;
-      font-size: 0.92rem;
-    }
-    .col-stage {
-      width: 14%;
-      text-align: center;
-      font-weight: 800;
-      background-color: #f8fafc;
-      color: #334155;
-      font-size: 0.88rem;
-    }
-    .col-defect {
-      width: 25%;
-      text-align: left;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .col-qty {
-      width: 10%;
-      text-align: center;
-      font-weight: 800;
-      color: var(--danger);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 1rem;
-    }
-    .col-rate {
-      width: 10%;
-      text-align: center;
-      font-weight: 800;
-      color: var(--danger);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 1rem;
-    }
-    .col-analysis {
-      width: 41%;
-      text-align: left;
-      font-weight: 500;
-      color: #475569;
-      font-size: 0.85rem;
-    }
-
-    /* Editable Action Input */
-    .capa-action-input {
-      width: 100%;
-      padding: 4px 8px;
-      font-size: 0.82rem;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #f8fafc;
-      transition: all 0.15s ease;
-    }
-    .capa-action-input:focus {
-      background: #ffffff;
-      border-color: var(--primary);
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
-    }
+    .report-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; background-color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.08); font-size: 1rem; border-radius: 8px; overflow: hidden; border: 2px solid #333;}
+    .report-table th, .report-table td { border: 1px solid #999; padding: 10px 14px; vertical-align: middle; }
+    .header-yellow th { background-color: #ffeba1; color: #000; font-weight: 800; text-align: center; font-size: 1.1rem;}
+    .header-blue th { background-color: #d0def7; color: #000; font-weight: 800; text-align: center; font-size: 1.1rem;}
+    .col-stage { width: 15%; text-align: center; font-weight: 800; background-color: #f8f9fa; color: #000; font-size: 1.05rem;}
+    .col-defect { width: 25%; text-align: center; font-weight: 800; color: #111;}
+    .col-qty { width: 10%; text-align: center; font-weight: 800; color: var(--danger); font-size: 1.2rem;}
+    .col-rate { width: 10%; text-align: center; font-weight: 800; color: var(--danger); font-size: 1.2rem;}
+    .col-analysis { width: 40%; text-align: left; font-weight: 700; color: #222;}
+    
+    #model-summary-table th { background-color: #e9ecef; font-weight: 800; color: #333;}
+    #model-summary-table td { font-weight: 600; vertical-align: middle;}
 
     #companyLogo { display: none; }
   </style>
@@ -423,365 +65,122 @@
 
   <div id="root" style="display:none"></div>
 
-  <img id="companyLogo" src="https://i.postimg.cc/5y7SN4xc/logo.png" alt="Logo">
+  <img id="companyLogo" crossorigin="anonymous" src="https://api.allorigins.win/raw?url=https://i.postimg.cc/5y7SN4xc/logo.png" alt="Logo">
 
   <div class="container-fluid pt-3 px-4">
     
-    <div class="dashboard-header d-flex flex-wrap justify-content-between align-items-center gap-3">
-      <div class="d-flex align-items-center">
-        <img src="https://i.postimg.cc/5y7SN4xc/logo.png" alt="Company Logo" style="height: 48px; margin-right: 18px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-        <div>
-          <h2 class="brand-title mb-1">Production Quality &amp; Yield Intelligence System</h2>
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span id="sync-status" class="status-badge bg-dark text-light border border-secondary shadow-sm">
-              <span class="pulse-dot"></span> Fetching Live Data...
-            </span>
-            <span id="last-updated-text" class="text-white-50 small" style="font-size: 0.78rem;"></span>
-            <button class="btn btn-sm btn-outline-light py-0 px-2 rounded-pill" onclick="initDashboard()" style="font-size: 0.75rem;" title="Refresh live data">↻ Refresh</button>
-          </div>
-        </div>
+    <div class="dashboard-header d-flex flex-wrap justify-content-between align-items-center">
+      <div class="d-flex align-items-center mb-2 mb-md-0">
+        <img src="https://i.postimg.cc/5y7SN4xc/logo.png" alt="Company Logo" style="height: 50px; margin-right: 20px;">
+        <h2 class="brand-title mb-0">Production Quality &amp; Yield Dashboard 
+          <span id="sync-status" class="badge bg-warning text-dark fs-6 ms-2" style="vertical-align: middle;">↻ Fetching Live Data...</span>
+        </h2>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <button class="header-btn btn btn-outline-light text-white shadow-sm" onclick="openDataSourceModal()">
-          <span>🔗</span> Data Source
+        <button id="exportTop5Btn" class="btn btn-warning text-dark fw-bold px-3 py-2 shadow-sm rounded-pill" onclick="exportTop5ReportToExcelJS()" disabled>
+          <span style="font-size: 1.1rem; margin-right: 5px;">🎯</span> Export Line Top 5 CAPA
         </button>
-        <button id="exportTop5Btn" class="header-btn btn btn-warning text-dark shadow-sm" onclick="exportTop5ReportToExcelJS()" disabled>
-          <span>🎯</span> Export Line Top 5 CAPA
+        <button id="exportReviewBtn" class="btn btn-primary fw-bold px-3 py-2 shadow-sm rounded-pill" onclick="exportReviewReportToExcelJS()" disabled>
+          <span style="font-size: 1.1rem; margin-right: 5px;">📋</span> Export Review &amp; Improvement
         </button>
-        <button id="exportReviewBtn" class="header-btn btn btn-primary text-white shadow-sm" onclick="exportReviewReportToExcelJS()" disabled>
-          <span>📋</span> Export Review &amp; Improvement
-        </button>
-        <button id="exportBtn" class="header-btn btn btn-success text-white shadow-sm" onclick="exportToExcelJS()" disabled>
-          <span>📥</span> Export Master Report
+        <button id="exportBtn" class="btn btn-success fw-bold px-4 py-2 shadow-sm rounded-pill" onclick="exportToExcelJS()" disabled>
+          <span style="font-size: 1.1rem; margin-right: 5px;">📥</span> Export Master Report
         </button>
       </div>
     </div>
 
-    <!-- Data Connection Alert Banner -->
-    <div id="data-connection-alert" class="alert alert-warning d-none py-2 px-3 mb-3 rounded-3 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        <strong id="data-alert-title">⚠️ Google Sheets Connection Note:</strong> 
-        <span id="data-alert-message" class="ms-1">Unable to connect to Google Apps Script.</span>
-      </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-dark py-1 px-3 rounded-pill fw-bold" onclick="openDataSourceModal()">Update API URL / Paste Data</button>
-        <button class="btn btn-sm btn-outline-secondary py-1 px-2 rounded-pill" onclick="document.getElementById('data-connection-alert').classList.add('d-none')">✕</button>
-      </div>
+    <!-- RED ZONE ANALYSIS ALERT -->
+    <div id="red-zone-container" class="alert-red-zone d-none">
+        <h5 class="fw-bold text-danger mb-2">⚠️ Red Zone Alert (Yield &lt; 97%)</h5>
+        <div id="red-zone-details" class="d-flex flex-wrap gap-3"></div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="dashboard-tabs">
-      <button class="tab-btn active" id="tab-overview" onclick="switchDashboardTab('overview')">
-        <span>📊</span> Executive Overview &amp; Analytics
-      </button>
-      <button class="tab-btn" id="tab-review" onclick="switchDashboardTab('review')">
-        <span>📋</span> Line &amp; Date Defect Review
-      </button>
-      <button class="tab-btn" id="tab-top5" onclick="switchDashboardTab('top5')">
-        <span>🎯</span> Line Top 5 CAPA Planner
-      </button>
-      <button class="tab-btn" id="tab-stagewise" onclick="switchDashboardTab('stagewise')">
-        <span>📑</span> Stage-Wise Model Reports
-      </button>
-    </div>
-
-    <!-- Universal Filter Bar -->
-    <div class="filter-bar">
-      <div class="filter-header-bar">
-        <div class="d-flex align-items-center gap-2">
-          <span class="fw-bold text-dark fs-6">🔍 Production Filters</span>
-          <span id="active-filter-badge" class="badge bg-light text-secondary border">Showing All Data</span>
-        </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded" onclick="setDatePreset('all')">All Dates</button>
-          <button class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded" onclick="setDatePreset('7days')">Last 7 Days</button>
-          <button class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded" onclick="setDatePreset('today')">Today</button>
-          <button class="btn btn-sm btn-outline-secondary fw-bold px-2 py-1 rounded" onclick="resetFilters()">Reset All</button>
-        </div>
-      </div>
-
-      <div class="row g-3">
-        <div class="col-md-3">
-          <label class="form-label fw-bold text-secondary small mb-1">DATE RANGE</label>
-          <div class="date-picker-box">
-            <div><span class="fw-bold text-primary small d-block" style="font-size:0.7rem;">FROM</span><input type="date" id="filter-date-from" onchange="applyFilters()"></div>
-            <div><span class="fw-bold text-primary small d-block" style="font-size:0.7rem;">TO</span><input type="date" id="filter-date-to" onchange="applyFilters()"></div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <label class="form-label fw-bold text-secondary small mb-0">LINE FILTER</label>
-            <div>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-line', true)" class="small text-decoration-none me-1" style="font-size:0.72rem;">All</a>
-              <span class="text-muted small">|</span>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-line', false)" class="small text-decoration-none ms-1" style="font-size:0.72rem;">Clear</a>
-            </div>
-          </div>
-          <input type="text" class="filter-search-box" placeholder="Search line..." onkeyup="filterCheckboxesList('filter-line', this.value)">
-          <div class="checkbox-list" id="filter-line"></div>
-        </div>
-        <div class="col-md-3">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <label class="form-label fw-bold text-secondary small mb-0">MODEL FILTER</label>
-            <div>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-model', true)" class="small text-decoration-none me-1" style="font-size:0.72rem;">All</a>
-              <span class="text-muted small">|</span>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-model', false)" class="small text-decoration-none ms-1" style="font-size:0.72rem;">Clear</a>
-            </div>
-          </div>
-          <input type="text" class="filter-search-box" placeholder="Search model..." onkeyup="filterCheckboxesList('filter-model', this.value)">
-          <div class="checkbox-list" id="filter-model"></div>
-        </div>
-        <div class="col-md-3">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <label class="form-label fw-bold text-secondary small mb-0">CATEGORY FILTER</label>
-            <div>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-category', true)" class="small text-decoration-none me-1" style="font-size:0.72rem;">All</a>
-              <span class="text-muted small">|</span>
-              <a href="javascript:void(0)" onclick="toggleCheckboxes('filter-category', false)" class="small text-decoration-none ms-1" style="font-size:0.72rem;">Clear</a>
-            </div>
-          </div>
-          <input type="text" class="filter-search-box" placeholder="Search category..." onkeyup="filterCheckboxesList('filter-category', this.value)">
-          <div class="checkbox-list" id="filter-category"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Executive KPI Strip -->
-    <div class="row g-3 mb-4">
+    <div class="filter-bar row g-3">
       <div class="col-md-3">
-        <div class="kpi-card kpi-input">
-          <div class="kpi-title">
-            <span>Total Input Qty</span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">Production</span>
-          </div>
-          <div class="kpi-value text-primary" id="kpi-input">0</div>
-          <div class="kpi-subtext"><span class="text-success fw-bold">✓</span> Total units entered into line</div>
+        <label class="form-label fw-bold text-secondary">Date Range</label>
+        <div class="date-picker-box h-100">
+          <div><span class="fw-bold text-primary small d-block">FROM</span><input type="date" id="filter-date-from" onchange="applyFilters()"></div>
+          <div><span class="fw-bold text-primary small d-block mt-2 mt-md-0">TO</span><input type="date" id="filter-date-to" onchange="applyFilters()"></div>
         </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label fw-bold text-secondary">Line Filter</label>
+        <div class="checkbox-list" id="filter-line"></div>
       </div>
       <div class="col-md-3">
-        <div class="kpi-card kpi-defects">
-          <div class="kpi-title">
-            <span>Total Defects</span>
-            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill" id="kpi-dpu-badge">DPU 0.00</span>
-          </div>
-          <div class="kpi-value text-danger" id="kpi-defects">0</div>
-          <div class="kpi-subtext" id="kpi-defects-subtext">Cumulative defect count across stages</div>
-        </div>
+        <label class="form-label fw-bold text-secondary">Model Filter</label>
+        <div class="checkbox-list" id="filter-model"></div>
       </div>
       <div class="col-md-3">
-        <div class="kpi-card kpi-yield">
-          <div class="kpi-title">
-            <span>Overall Yield (FPY)</span>
-            <span class="badge rounded-pill" id="kpi-yield-badge">Target ≥ 97.0%</span>
-          </div>
-          <div class="kpi-value text-success" id="kpi-yield">0%</div>
-          <div class="kpi-subtext" id="kpi-yield-subtext"><span class="fw-bold">Benchmark:</span> First Pass Yield SLA 97%</div>
-        </div>
+        <label class="form-label fw-bold text-secondary">Category Filter</label>
+        <div class="checkbox-list" id="filter-category"></div>
       </div>
-      <div class="col-md-3">
-        <div class="kpi-card kpi-rejection">
-          <div class="kpi-title">
-            <span>Rejection Rate</span>
-            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill" id="kpi-ppm-badge">0 PPM</span>
+      <div class="col-md-1 d-flex flex-column justify-content-end pb-1">
+        <button class="btn btn-outline-secondary w-100 fw-bold py-2 shadow-sm" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-md-3"><div class="kpi-card kpi-input"><div class="kpi-title">Total Input Qty</div><div class="kpi-value text-primary" id="kpi-input">0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card kpi-defects"><div class="kpi-title">Total Defects</div><div class="kpi-value text-danger" id="kpi-defects">0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card kpi-yield"><div class="kpi-title">Overall Yield (FPY)</div><div class="kpi-value text-success" id="kpi-yield">0%</div></div></div>
+      <div class="col-md-3"><div class="kpi-card kpi-rejection"><div class="kpi-title">Rejection Rate</div><div class="kpi-value text-warning" id="kpi-rejection">0%</div></div></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-md-12">
+        <div class="chart-container shadow-sm border-0 h-100">
+          <h5 class="fw-bold mb-3 text-dark fs-5"><span style="color: var(--primary);">|</span> Model-Wise Performance &amp; Major Issues</h5>
+          <div class="table-responsive">
+            <table class="table table-hover table-bordered text-center align-middle" id="model-summary-table">
+              <thead>
+                <tr>
+                  <th>Model Name</th>
+                  <th>Total Input</th>
+                  <th>Total Defects</th>
+                  <th>FPY (Yield)</th>
+                  <th>Rejection Rate</th>
+                  <th class="text-start">Major Reason (Top Defect)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
-          <div class="kpi-value text-warning" id="kpi-rejection">0%</div>
-          <div class="kpi-subtext" id="kpi-rejection-subtext">Defect parts per million output</div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 1: EXECUTIVE OVERVIEW -->
-    <div id="view-overview" class="tab-content-panel">
-      <!-- RED ZONE ALERT -->
-      <div id="red-zone-container" class="alert-red-zone d-none">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="fw-bold text-danger mb-0">⚠️ Red Zone Yield Warning (Lines with FPY &lt; 97%)</h5>
-          <span class="badge bg-danger text-white">Action Required</span>
-        </div>
-        <div id="red-zone-details" class="d-flex flex-wrap gap-2"></div>
-      </div>
-
-      <!-- Model Performance Table -->
-      <div class="content-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="fw-bold mb-0 text-dark fs-5"><span style="color: var(--primary);">|</span> Model-Wise Performance &amp; Defect Contribution</h5>
-          <span class="text-muted small">Aggregated by model across filtered criteria</span>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle custom-dashboard-table" id="model-summary-table">
-            <thead>
-              <tr>
-                <th class="text-start ps-3">Model Name</th>
-                <th>Total Input</th>
-                <th>Total Defects</th>
-                <th>FPY (Yield)</th>
-                <th>Rejection Rate</th>
-                <th class="text-start">Major Defect &amp; Root Cause Analysis</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Trend & Yield Charts -->
-      <div class="row g-4 mb-2">
-        <div class="col-md-6"><div class="chart-container" style="height: 330px;"><canvas id="trendChart"></canvas></div></div>
-        <div class="col-md-6"><div class="chart-container" style="height: 330px;"><canvas id="lineYieldChart"></canvas></div></div>
-      </div>
-      <div class="row g-4 mb-2">
-        <div class="col-md-12"><div class="chart-container" style="height: 310px;"><canvas id="modelRejChart"></canvas></div></div>
-      </div>
-      
-      <!-- Pareto Chart -->
-      <div class="row g-4 mb-4">
-        <div class="col-md-12">
-          <div class="chart-container" style="height: 430px;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div>
-                <h5 class="fw-bold mb-0 text-dark fs-5"><span style="color: var(--primary);">|</span> Defect Pareto Analysis (80/20 Rule)</h5>
-                <small class="text-muted">Identifies the vital few defect categories causing majority quality loss</small>
-              </div>
-              <div class="btn-group shadow-sm" role="group">
-                <input type="radio" class="btn-check" name="paretoMode" id="btnRate" autocomplete="off" checked onchange="toggleParetoMode('rate')">
-                <label class="btn btn-outline-primary btn-sm px-3 fw-bold" for="btnRate">By Rate (%)</label>
-                <input type="radio" class="btn-check" name="paretoMode" id="btnQty" autocomplete="off" onchange="toggleParetoMode('qty')">
-                <label class="btn btn-outline-primary btn-sm px-3 fw-bold" for="btnQty">By Qty</label>
-              </div>
+    <div class="row g-4 mb-2">
+      <div class="col-md-6"><div class="chart-container" style="height: 320px;"><canvas id="trendChart"></canvas></div></div>
+      <div class="col-md-6"><div class="chart-container" style="height: 320px;"><canvas id="lineYieldChart"></canvas></div></div>
+    </div>
+    <div class="row g-4 mb-2">
+      <div class="col-md-12"><div class="chart-container" style="height: 300px;"><canvas id="modelRejChart"></canvas></div></div>
+    </div>
+    
+    <div class="row g-4 mb-5">
+      <div class="col-md-12">
+        <div class="chart-container" style="height: 420px;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-dark" style="font-size:18px;">Defect Pareto Analysis</h5>
+            <div class="btn-group shadow-sm" role="group">
+              <input type="radio" class="btn-check" name="paretoMode" id="btnRate" autocomplete="off" checked onchange="toggleParetoMode('rate')">
+              <label class="btn btn-outline-primary btn-sm px-3 fw-bold" for="btnRate">By Rate (%)</label>
+              <input type="radio" class="btn-check" name="paretoMode" id="btnQty" autocomplete="off" onchange="toggleParetoMode('qty')">
+              <label class="btn btn-outline-primary btn-sm px-3 fw-bold" for="btnQty">By Qty</label>
             </div>
-            <div style="height: 340px;"><canvas id="paretoChart"></canvas></div>
           </div>
+          <div style="height: 330px;"><canvas id="paretoChart"></canvas></div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 2: LINE & DATE DEFECT REVIEW (ON-SCREEN INTERACTIVE) -->
-    <div id="view-review" class="tab-content-panel d-none">
-      <div class="content-card">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <div>
-            <h5 class="fw-bold mb-0 text-dark fs-5"><span style="color: var(--primary);">|</span> Line &amp; Date Defect Review (Process, RMD, SMT)</h5>
-            <small class="text-muted">Direct on-screen review of defect quantities, root cause analysis, and improvement status by line &amp; date</small>
-          </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary fw-bold rounded-pill px-3 shadow-sm" onclick="exportReviewReportToExcelJS()">
-              📋 Download Review Sheet
-            </button>
-          </div>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle custom-dashboard-table" id="line-date-review-table">
-            <thead>
-              <tr>
-                <th>Line</th>
-                <th>Date</th>
-                <th>Input Qty</th>
-                <th>Process Defect</th>
-                <th>RMD Defect</th>
-                <th>SMT Defect</th>
-                <th>Total Defect</th>
-                <th>Rej Rate</th>
-                <th>FPY (Yield%)</th>
-                <th class="text-start" style="min-width: 250px;">Defect Cause / Root Cause</th>
-                <th class="text-start" style="min-width: 250px;">Improvement Findings (CAPA)</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 3: LINE-WISE TOP 5 DEFECTS & CAPA PLANNER (ON-SCREEN INTERACTIVE) -->
-    <div id="view-top5" class="tab-content-panel d-none">
-      <div class="content-card">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <div>
-            <h5 class="fw-bold mb-0 text-dark fs-5"><span style="color: var(--primary);">|</span> Line-Wise Top 5 Defect Analysis &amp; CAPA Action Planner</h5>
-            <small class="text-muted">Separated by Process, RMD, and SMT with live editable Action Plan, Owner, and Target Date writing</small>
-          </div>
-          <div class="d-flex gap-2 align-items-center">
-            <span id="capa-save-indicator" class="text-success small fw-bold d-none">✓ Actions Saved</span>
-            <button class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm" onclick="exportTop5ReportToExcelJS()">
-              🎯 Download Top 5 CAPA Report
-            </button>
-          </div>
-        </div>
-        <div id="top5-line-container"></div>
-      </div>
-    </div>
-
-    <!-- TAB 4: STAGE-WISE MODEL SUMMARY REPORTS -->
-    <div id="view-stagewise" class="tab-content-panel d-none">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="fw-bolder mb-0 text-dark" style="font-size: 1.35rem;"><span style="color: var(--primary);">|</span> Stage-Wise Model Summary Reports</h4>
-        <span class="text-muted small">Detailed stage-wise defect breakdown and failure analysis</span>
-      </div>
-      <div id="reports-container"></div>
-    </div>
+    <h4 class="fw-bolder mb-4 text-dark" style="font-size: 1.5rem;"><span style="color: var(--primary);">|</span> Stage-Wise Model Summary Reports</h4>
+    <div id="reports-container"></div>
   </div>
 
-  <!-- Data Source Modal -->
-  <div class="modal fade" id="dataSourceModal" tabindex="-1" aria-hidden="true" style="display:none; background: rgba(0,0,0,0.6);">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-bottom py-3 px-4 bg-light">
-          <h5 class="modal-title fw-bold text-dark fs-5">🔗 Data Source &amp; Google Sheet Live Sync</h5>
-          <button type="button" class="btn-close" onclick="closeDataSourceModal()"></button>
-        </div>
-        <div class="modal-body p-4">
-          <ul class="nav nav-pills mb-3" id="dataSourceTabs" role="tablist">
-            <li class="nav-item">
-              <button class="nav-link active fw-bold py-1 px-3" id="modal-tab-api" onclick="switchModalTab('api')">Google Apps Script Web App</button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link fw-bold py-1 px-3 ms-2" id="modal-tab-paste" onclick="switchModalTab('paste')">Paste Sheet Data (JSON)</button>
-            </li>
-          </ul>
-
-          <div id="modal-panel-api">
-            <div class="mb-3">
-              <label class="form-label fw-bold text-secondary small">GOOGLE APPS SCRIPT WEB APP URL</label>
-              <div class="input-group">
-                <input type="url" id="custom-api-url-input" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
-                <button class="btn btn-primary fw-bold px-3" onclick="saveAndSyncApiUrl()">Connect &amp; Sync ↻</button>
-              </div>
-              <small class="text-muted d-block mt-2">
-                <strong>How to get the active URL:</strong> In your Google Sheet (<span class="text-primary fw-bold">SMT_Master</span>), click <em>Extensions &gt; Apps Script</em>. Click <em>Deploy &gt; Manage deployments</em> (or <em>New deployment</em>). Select <strong>Web app</strong>, ensure <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>. Copy the URL ending in <code>/exec</code> and paste it above.
-              </small>
-            </div>
-            <div class="p-3 bg-light rounded-3 border">
-              <span class="fw-bold d-block small text-dark mb-1">Connection Telemetry:</span>
-              <div id="api-connection-status-text" class="small text-muted">Checking connection...</div>
-            </div>
-          </div>
-
-          <div id="modal-panel-paste" class="d-none">
-            <div class="mb-3">
-              <label class="form-label fw-bold text-secondary small">PASTE JSON PRODUCTION DATA</label>
-              <textarea id="paste-json-input" class="form-control font-monospace" style="font-size:0.8rem;" rows="8" placeholder='{"inputs":[{"date":"2026-09-01","line":"SMT 1","model":"M1","input":1000}], "records":[{"date":"2026-09-01","line":"SMT 1","model":"M1","stage":"SMT","category":"Process","defect":"Bridging","qty":5,"analysis":"Clogged aperture"}]}'></textarea>
-              <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
-                <small class="text-muted">Loads your exact production records and caches them permanently in your browser.</small>
-                <button class="btn btn-success fw-bold px-3" onclick="loadPastedDataFromModal()">Load Pasted Data ✓</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-top py-2 px-4">
-          <button type="button" class="btn btn-secondary rounded-pill px-3" onclick="closeDataSourceModal()">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- React/Vite mount script (Only loaded if available) -->
-  <script type="module">
-    if (window.location.hostname === 'localhost' || window.location.hostname.includes('run.app') || window.location.hostname === '127.0.0.1') {
-      import('/src/main.tsx').catch(() => {});
-    }
-  </script>
+  <!-- React/Vite mount script -->
+  <script type="module" src="/src/main.tsx"></script>
 
   <!-- Complete Standalone Application Logic -->
   <script>
@@ -798,17 +197,13 @@
     let currentParetoMode = 'rate', filteredRecordsGlobal = [], filteredInputsGlobal = [];
 
     function getBase64Image(imgId) {
-      try {
-        const img = document.getElementById(imgId);
-        if (!img || !img.complete || img.naturalWidth === 0) return null;
-        const canvas = document.createElement("canvas"); 
-        canvas.width = img.naturalWidth; 
-        canvas.height = img.naturalHeight;
-        canvas.getContext("2d").drawImage(img, 0, 0); 
-        return canvas.toDataURL("image/png");
-      } catch (e) {
-        return null;
-      }
+      const img = document.getElementById(imgId);
+      if (!img || !img.complete || img.naturalWidth === 0) return null;
+      const canvas = document.createElement("canvas"); 
+      canvas.width = img.naturalWidth; 
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d").drawImage(img, 0, 0); 
+      return canvas.toDataURL("image/png");
     }
 
     function parseToISODate(rawDate) {
@@ -830,289 +225,42 @@
       return `${p[2]}-${m[parseInt(p[1], 10) - 1]}`;
     }
 
-    // Comprehensive Embedded Production Baseline (Reflects Immediately on Page Load)
-    const EMBEDDED_BASELINE_DATA = {
-      inputs: [
-        { date: "2026-09-01", line: "SMT Line 1", model: "TWS Earbuds Pro", input: 2400 },
-        { date: "2026-09-01", line: "SMT Line 2", model: "Smart Audio 200", input: 2200 },
-        { date: "2026-09-01", line: "TWS Line 1", model: "Califonix Wave 4", input: 1800 },
-        { date: "2026-09-01", line: "Manual Assembly", model: "Smart Watch V3", input: 1500 },
-        { date: "2026-09-02", line: "SMT Line 1", model: "TWS Earbuds Pro", input: 2500 },
-        { date: "2026-09-02", line: "SMT Line 2", model: "Smart Audio 200", input: 2150 },
-        { date: "2026-09-02", line: "TWS Line 1", model: "Califonix Wave 4", input: 1900 },
-        { date: "2026-09-02", line: "Manual Assembly", model: "Smart Watch V3", input: 1600 },
-        { date: "2026-09-03", line: "SMT Line 1", model: "TWS Earbuds Pro", input: 2600 },
-        { date: "2026-09-03", line: "SMT Line 2", model: "Smart Audio 200", input: 2300 },
-        { date: "2026-09-03", line: "TWS Line 1", model: "Califonix Wave 4", input: 1850 },
-        { date: "2026-09-03", line: "Manual Assembly", model: "Smart Watch V3", input: 1550 },
-        { date: "2026-09-04", line: "SMT Line 1", model: "TWS Earbuds Pro", input: 2450 },
-        { date: "2026-09-04", line: "SMT Line 2", model: "Smart Audio 200", input: 2100 },
-        { date: "2026-09-04", line: "TWS Line 1", model: "Califonix Wave 4", input: 1950 },
-        { date: "2026-09-04", line: "Manual Assembly", model: "Smart Watch V3", input: 1650 },
-        { date: "2026-09-05", line: "SMT Line 1", model: "TWS Earbuds Pro", input: 2700 },
-        { date: "2026-09-05", line: "SMT Line 2", model: "Smart Audio 200", input: 2400 },
-        { date: "2026-09-05", line: "TWS Line 1", model: "Califonix Wave 4", input: 2000 },
-        { date: "2026-09-05", line: "Manual Assembly", model: "Smart Watch V3", input: 1700 }
-      ],
-      records: [
-        { date: "2026-09-01", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "AOI Visual", category: "Process", defect: "Solder Bridging", qty: 28, analysis: "Stencil aperture clogged; ultrasonic wash frequency raised" },
-        { date: "2026-09-01", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "SMT Inspection", category: "SMT", defect: "Component Tombstoning", qty: 18, analysis: "Reflow zone 3 delta temp 8°C above profile; recalibrated" },
-        { date: "2026-09-01", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "ICT / FCT Testing", category: "RMD", defect: "Damaged Resistor", qty: 12, analysis: "Feeder tape tension misalignment; replaced feeder unit #4" },
-        { date: "2026-09-01", line: "SMT Line 2", model: "Smart Audio 200", stage: "AOI Visual", category: "Process", defect: "Insufficient Solder", qty: 34, analysis: "Squeegee pressure drop; replenished SAC305 paste" },
-        { date: "2026-09-01", line: "SMT Line 2", model: "Smart Audio 200", stage: "SMT Inspection", category: "SMT", defect: "Misalignment", qty: 22, analysis: "Optical fiducial camera calibration offset 0.04mm" },
-        { date: "2026-09-01", line: "SMT Line 2", model: "Smart Audio 200", stage: "ICT / FCT Testing", category: "RMD", defect: "Polarity Reverse", qty: 9, analysis: "Operator tray loading orientation verified" },
-        { date: "2026-09-01", line: "TWS Line 1", model: "Califonix Wave 4", stage: "Final QC", category: "Process", defect: "Cold Solder Joint", qty: 26, analysis: "Peak reflow dwell time increased by 4 seconds" },
-        { date: "2026-09-01", line: "TWS Line 1", model: "Califonix Wave 4", stage: "SMT Inspection", category: "SMT", defect: "Solder Balling", qty: 15, analysis: "Pre-bake PCB moisture removal completed 2hrs @ 105°C" },
-        { date: "2026-09-01", line: "Manual Assembly", model: "Smart Watch V3", stage: "Final QC", category: "RMD", defect: "Broken Connector Pin", qty: 14, analysis: "Insertion jig guide replaced with zero-play fixture" },
-
-        { date: "2026-09-02", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "AOI Visual", category: "Process", defect: "Solder Bridging", qty: 22, analysis: "Stencil nano-coating renewed; wipe cycle 3 boards" },
-        { date: "2026-09-02", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "SMT Inspection", category: "SMT", defect: "Component Tombstoning", qty: 14, analysis: "Nitrogen purge flow maintained at 600 ppm O2" },
-        { date: "2026-09-02", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "ICT / FCT Testing", category: "Process", defect: "Open Solder", qty: 16, analysis: "Paste volume transfer efficiency verified via SPI" },
-        { date: "2026-09-02", line: "SMT Line 2", model: "Smart Audio 200", stage: "AOI Visual", category: "Process", defect: "Insufficient Solder", qty: 30, analysis: "Paste height 125um within CPK 1.54 limits" },
-        { date: "2026-09-02", line: "SMT Line 2", model: "Smart Audio 200", stage: "SMT Inspection", category: "SMT", defect: "Misalignment", qty: 19, analysis: "Nozzle tip #7 clean and vacuum seal checked" },
-        { date: "2026-09-02", line: "TWS Line 1", model: "Califonix Wave 4", stage: "Final QC", category: "Process", defect: "Cold Solder Joint", qty: 20, analysis: "Profile verification with 9-channel data logger" },
-        { date: "2026-09-02", line: "Manual Assembly", model: "Smart Watch V3", stage: "Final QC", category: "RMD", defect: "Damaged Resistor", qty: 11, analysis: "Component reel packaging inspected for crushed parts" },
-
-        { date: "2026-09-03", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "AOI Visual", category: "Process", defect: "Solder Bridging", qty: 19, analysis: "Aperture release smooth; paste viscosity 190 Pa.s" },
-        { date: "2026-09-03", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "SMT Inspection", category: "SMT", defect: "Component Tombstoning", qty: 11, analysis: "Pre-heat ramp rate capped at 1.8°C/s" },
-        { date: "2026-09-03", line: "SMT Line 2", model: "Smart Audio 200", stage: "AOI Visual", category: "Process", defect: "Insufficient Solder", qty: 25, analysis: "Stencil blade angle set to 60 degrees" },
-        { date: "2026-09-03", line: "SMT Line 2", model: "Smart Audio 200", stage: "SMT Inspection", category: "SMT", defect: "Misalignment", qty: 16, analysis: "Board support pin layout optimized to reduce flexing" },
-        { date: "2026-09-03", line: "TWS Line 1", model: "Califonix Wave 4", stage: "Final QC", category: "Process", defect: "Cold Solder Joint", qty: 18, analysis: "Oven zone 7 set point adjusted +4°C" },
-        { date: "2026-09-03", line: "Manual Assembly", model: "Smart Watch V3", stage: "ICT / FCT Testing", category: "Process", defect: "Open Solder", qty: 15, analysis: "Manual soldering station tip temp calibrated 350°C" },
-
-        { date: "2026-09-04", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "AOI Visual", category: "Process", defect: "Solder Bridging", qty: 16, analysis: "Zero bridge detected on fine pitch QFNs" },
-        { date: "2026-09-04", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "SMT Inspection", category: "SMT", defect: "Component Tombstoning", qty: 9, analysis: "Placement force adjusted to 1.5N" },
-        { date: "2026-09-04", line: "SMT Line 2", model: "Smart Audio 200", stage: "AOI Visual", category: "Process", defect: "Insufficient Solder", qty: 21, analysis: "Paste roll diameter maintained between 15-20mm" },
-        { date: "2026-09-04", line: "SMT Line 2", model: "Smart Audio 200", stage: "SMT Inspection", category: "SMT", defect: "Misalignment", qty: 14, analysis: "Fiducial recognition speed increased" },
-        { date: "2026-09-04", line: "TWS Line 1", model: "Califonix Wave 4", stage: "Final QC", category: "Process", defect: "Cold Solder Joint", qty: 14, analysis: "Conveyor speed stable at 0.85 m/min" },
-        { date: "2026-09-04", line: "Manual Assembly", model: "Smart Watch V3", stage: "Final QC", category: "RMD", defect: "Broken Connector Pin", qty: 8, analysis: "Assembly torque screwdriver setting 0.15 Nm" },
-
-        { date: "2026-09-05", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "AOI Visual", category: "Process", defect: "Solder Bridging", qty: 14, analysis: "Controlled environment: 23°C and 52% RH" },
-        { date: "2026-09-05", line: "SMT Line 1", model: "TWS Earbuds Pro", stage: "SMT Inspection", category: "SMT", defect: "Component Tombstoning", qty: 8, analysis: "Delta T across BGA package < 3°C" },
-        { date: "2026-09-05", line: "SMT Line 2", model: "Smart Audio 200", stage: "AOI Visual", category: "Process", defect: "Insufficient Solder", qty: 18, analysis: "SPI volume height 100% compliant" },
-        { date: "2026-09-05", line: "SMT Line 2", model: "Smart Audio 200", stage: "SMT Inspection", category: "SMT", defect: "Misalignment", qty: 11, analysis: "All 12 pick heads calibrated" },
-        { date: "2026-09-05", line: "TWS Line 1", model: "Califonix Wave 4", stage: "Final QC", category: "Process", defect: "Cold Solder Joint", qty: 12, analysis: "Reflow thermal margin validated" },
-        { date: "2026-09-05", line: "Manual Assembly", model: "Smart Watch V3", stage: "ICT / FCT Testing", category: "Process", defect: "Open Solder", qty: 10, analysis: "Microscope 20x solder fillet visual check" }
-      ]
-    };
-
-    function loadDataIntoDashboard(data, sourceLabel) {
-      if (!data || !data.records || !data.inputs) return;
-      rawRecords = data.records.map(r => { 
-        let iso = parseToISODate(r.date); 
-        return { ...r, isoDate: iso, date: getDisplayDate(iso), qty: Number(r.qty)||0 }; 
-      }).filter(r => r.isoDate !== null);
-      
-      rawInputs = data.inputs.map(i => { 
-        let iso = parseToISODate(i.date); 
-        return { ...i, isoDate: iso, date: getDisplayDate(iso), input: Number(i.input)||0 }; 
-      }).filter(i => i.isoDate !== null);
-
-      populateFilters(); 
-      applyFilters(); 
-
-      const sb = document.getElementById('sync-status');
-      if (sb) {
-        sb.className = "status-badge bg-success text-white border border-success shadow-sm"; 
-        sb.innerHTML = `<span class="pulse-dot"></span> ${sourceLabel || 'Data Active'}`;
-      }
-      const lastUpdated = document.getElementById('last-updated-text');
-      if (lastUpdated) {
-        lastUpdated.innerText = `Loaded: ${new Date().toLocaleTimeString()}`;
-      }
-      document.getElementById('exportBtn').disabled = false;
-      const reviewBtn = document.getElementById('exportReviewBtn');
-      if (reviewBtn) reviewBtn.disabled = false;
-      const top5Btn = document.getElementById('exportTop5Btn');
-      if (top5Btn) top5Btn.disabled = false;
-    }
-
-    function getEffectiveApiUrl() {
-      return localStorage.getItem('califonix_custom_api_url') || API_URL;
-    }
-
-    function openDataSourceModal() {
-      const modal = document.getElementById('dataSourceModal');
-      const input = document.getElementById('custom-api-url-input');
-      const statusText = document.getElementById('api-connection-status-text');
-      if (input) input.value = getEffectiveApiUrl();
-      if (statusText) statusText.innerText = "Configured URL: " + getEffectiveApiUrl();
-      if (modal) modal.style.display = 'block';
-    }
-
-    function closeDataSourceModal() {
-      const modal = document.getElementById('dataSourceModal');
-      if (modal) modal.style.display = 'none';
-    }
-
-    function switchModalTab(tabId) {
-      document.getElementById('modal-tab-api').classList.toggle('active', tabId === 'api');
-      document.getElementById('modal-tab-paste').classList.toggle('active', tabId === 'paste');
-      document.getElementById('modal-panel-api').classList.toggle('d-none', tabId !== 'api');
-      document.getElementById('modal-panel-paste').classList.toggle('d-none', tabId !== 'paste');
-    }
-
-    async function saveAndSyncApiUrl() {
-      const input = document.getElementById('custom-api-url-input');
-      const statusText = document.getElementById('api-connection-status-text');
-      const url = (input.value || '').trim();
-      if (!url) {
-        alert("https://script.google.com/macros/s/AKfycbzt-tb899ZjfBDm_4THMHcKP8Ux-JtU7LguIMglOUE6FXsJPRYmt9EEja38iIERFN9AxA/exec");
-        return;
-      }
-      localStorage.setItem('califonix_custom_api_url', url);
-      statusText.innerHTML = "Connecting to " + url + "... ⏳";
-      closeDataSourceModal();
-      await initDashboard(true);
-    }
-
-    function loadPastedDataFromModal() {
-      const textarea = document.getElementById('paste-json-input');
-      const text = (textarea.value || '').trim();
-      if (!text) {
-        alert("Please paste your JSON data first.");
-        return;
-      }
+    async function initDashboard() {
       try {
-        const parsed = JSON.parse(text);
-        if (!parsed.inputs || !parsed.records) {
-          alert("Invalid data format! JSON must contain 'inputs' array and 'records' array.");
-          return;
-        }
-        localStorage.setItem('califonix_user_saved_data', JSON.stringify(parsed));
-        loadDataIntoDashboard(parsed, 'User Sheet Data Loaded');
-        const alertBox = document.getElementById('data-connection-alert');
-        if (alertBox) alertBox.classList.add('d-none');
-        closeDataSourceModal();
-        alert("Success! Your production data has been loaded and saved locally.");
-      } catch (e) {
-        alert("JSON syntax error: " + e.message);
-      }
-    }
-
-    async function initDashboard(forceSync = false) {
-      const apiUrl = getEffectiveApiUrl();
-      const sb = document.getElementById('sync-status');
-      const alertBox = document.getElementById('data-connection-alert');
-      const alertMsg = document.getElementById('data-alert-message');
-
-      // 1. Immediately reflect any saved user data in 0ms so screen is NEVER blank
-      let loaded = false;
-      try {
-        const saved = localStorage.getItem('califonix_user_saved_data');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && parsed.records && parsed.records.length > 0) {
-            loadDataIntoDashboard(parsed, 'User Production Data');
-            loaded = true;
-          }
-        }
-      } catch (e) {}
-
-      if (!loaded) {
-        // Fallback baseline until cloud sync completes
-        loadDataIntoDashboard(EMBEDDED_BASELINE_DATA, 'Production Baseline Active');
-      }
-
-      if (sb) {
-        sb.className = "status-badge bg-primary text-white border border-primary shadow-sm"; 
-        sb.innerHTML = '<span class="pulse-dot"></span> Syncing Google Sheet...';
-      }
-
-      // 2. Fetch live data from Google Apps Script Web App
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout for Google Sheet calculation
-        const response = await fetch(apiUrl, { signal: controller.signal, redirect: 'follow' });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} (${response.statusText || 'Error'})`);
-        }
-
-        const text = await response.text();
-        if (text.trim().startsWith('<')) {
-          throw new Error("Google Apps Script returned an HTML page instead of JSON. Ensure the script deployment has 'Who has access' set to 'Anyone'.");
-        }
-
-        const cloudData = JSON.parse(text);
-        if (cloudData && cloudData.records && cloudData.inputs) {
-          localStorage.setItem('califonix_user_saved_data', JSON.stringify(cloudData));
-          loadDataIntoDashboard(cloudData, 'Live Sheet Synced');
-          if (alertBox) alertBox.classList.add('d-none');
-          if (sb) {
-            sb.className = "status-badge bg-success text-white border border-success shadow-sm"; 
-            sb.innerHTML = '<span class="pulse-dot"></span> Live Sheet Synced';
-          }
-        } else {
-          throw new Error("Received data does not contain expected 'inputs' and 'records' arrays.");
-        }
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        rawRecords = data.records.map(r => { 
+          let iso = parseToISODate(r.date); 
+          return { ...r, isoDate: iso, date: getDisplayDate(iso), qty: Number(r.qty)||0 }; 
+        }).filter(r => r.isoDate !== null);
+        rawInputs = data.inputs.map(i => { 
+          let iso = parseToISODate(i.date); 
+          return { ...i, isoDate: iso, date: getDisplayDate(iso), input: Number(i.input)||0 }; 
+        }).filter(i => i.isoDate !== null);
+        populateFilters(); 
+        applyFilters(); 
+        const sb = document.getElementById('sync-status');
+        sb.className = "badge bg-success text-white fs-6 ms-3 shadow-sm"; 
+        sb.innerHTML = "Live Data 🟢";
+        document.getElementById('exportBtn').disabled = false;
+        const reviewBtn = document.getElementById('exportReviewBtn');
+        if (reviewBtn) reviewBtn.disabled = false;
+        const top5Btn = document.getElementById('exportTop5Btn');
+        if (top5Btn) top5Btn.disabled = false;
       } catch (err) {
-        console.warn("Google Apps Script sync warning:", err);
-        if (alertBox) {
-          alertBox.classList.remove('d-none');
-          if (alertMsg) {
-            alertMsg.innerHTML = `<strong>Live Sheet connection notice:</strong> ${err.message} <br><small class="text-dark">Your Google Apps Script Web App may need to be redeployed or URL updated. Click <b>"Update API URL / Paste Data"</b> to paste your active link or data.</small>`;
-          }
-        }
+        const sb = document.getElementById('sync-status');
         if (sb) {
-          sb.className = "status-badge bg-warning text-dark border border-warning shadow-sm"; 
-          sb.innerHTML = '⚠️ Sheet Sync Notice (Click 🔗 Data Source)';
+          sb.className = "badge bg-danger text-white fs-6 ms-3 shadow-sm";
+          sb.innerHTML = "Connection Error 🔴";
         }
+        console.error(err);
       }
     }
 
-    // Execute initialization immediately
     if (document.readyState === 'loading') {
       window.addEventListener('DOMContentLoaded', initDashboard);
     } else {
       initDashboard();
-    }
-
-    /* Tab Switching Logic */
-    function switchDashboardTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content-panel').forEach(panel => panel.classList.add('d-none'));
-      const activeBtn = document.getElementById(`tab-${tabId}`);
-      const activePanel = document.getElementById(`view-${tabId}`);
-      if (activeBtn) activeBtn.classList.add('active');
-      if (activePanel) activePanel.classList.remove('d-none');
-    }
-
-    /* Date Preset Shortcuts */
-    function setDatePreset(preset) {
-      const allIsoDates = [...new Set(rawRecords.map(r => r.isoDate))].sort();
-      if (allIsoDates.length === 0) return;
-      const maxDate = allIsoDates[allIsoDates.length - 1];
-      if (preset === 'all') {
-        document.getElementById('filter-date-from').value = "";
-        document.getElementById('filter-date-to').value = "";
-      } else if (preset === 'today') {
-        document.getElementById('filter-date-from').value = maxDate;
-        document.getElementById('filter-date-to').value = maxDate;
-      } else if (preset === '7days') {
-        let d = new Date(maxDate);
-        d.setDate(d.getDate() - 7);
-        let fromIso = d.toISOString().split('T')[0];
-        document.getElementById('filter-date-from').value = fromIso < allIsoDates[0] ? allIsoDates[0] : fromIso;
-        document.getElementById('filter-date-to').value = maxDate;
-      }
-      applyFilters();
-    }
-
-    /* Checkbox list helpers */
-    function toggleCheckboxes(containerId, checkAll) {
-      document.querySelectorAll(`#${containerId} input.filter-checkbox`).forEach(cb => cb.checked = checkAll);
-      applyFilters();
-    }
-
-    function filterCheckboxesList(containerId, query) {
-      const q = (query || '').toLowerCase().trim();
-      document.querySelectorAll(`#${containerId} .form-check`).forEach(div => {
-        const label = div.querySelector('label');
-        if (!label) return;
-        div.style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
-      });
     }
 
     function buildCheckboxList(containerId, items) {
@@ -1144,8 +292,6 @@
       document.querySelectorAll('.filter-checkbox').forEach(el => el.checked = false); 
       document.getElementById('filter-date-from').value = ""; 
       document.getElementById('filter-date-to').value = "";
-      document.querySelectorAll('.filter-search-box').forEach(inp => inp.value = "");
-      document.querySelectorAll('.form-check').forEach(div => div.style.display = "");
       applyFilters(); 
     }
 
@@ -1192,49 +338,7 @@
       let groupedModel = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'model');
       let groupedDate = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'isoDate');
       let groupedLine = groupData(filteredInputsGlobal, filteredRecordsGlobal, 'line');
-      
-      const filterBadge = document.getElementById('active-filter-badge');
-      if (filterBadge) {
-        let activeParts = [];
-        if (fFrom || fTo) activeParts.push(`Date: ${fFrom || 'Start'} to ${fTo || 'End'}`);
-        if (fLines.length > 0) activeParts.push(`${fLines.length} Lines`);
-        if (fModels.length > 0) activeParts.push(`${fModels.length} Models`);
-        if (fCats.length > 0) activeParts.push(`${fCats.length} Categories`);
-        filterBadge.innerText = activeParts.length > 0 ? activeParts.join(' | ') : 'Showing All Data';
-      }
-
       updateDashboard(groupedModel, groupedDate, groupedLine);
-    }
-
-    /* CAPA localStorage action persistence */
-    function getSavedCapaMap() {
-      try {
-        return JSON.parse(localStorage.getItem('quality_dashboard_capa') || '{}');
-      } catch (e) {
-        return {};
-      }
-    }
-
-    function saveCapaField(key, field, value) {
-      try {
-        let capaMap = getSavedCapaMap();
-        if (!capaMap[key]) capaMap[key] = {};
-        capaMap[key][field] = value;
-        localStorage.setItem('quality_dashboard_capa', JSON.stringify(capaMap));
-        const indicator = document.getElementById('capa-save-indicator');
-        if (indicator) {
-          indicator.classList.remove('d-none');
-          setTimeout(() => indicator.classList.add('d-none'), 2000);
-        }
-      } catch (e) {
-        console.error("CAPA save error:", e);
-      }
-    }
-
-    function getSavedCapaAction(lineName, category, rank, defectName) {
-      let capaMap = getSavedCapaMap();
-      let key = `${lineName}_${category}_${defectName}`;
-      return capaMap[key] || {};
     }
 
     function updateDashboard(groupedModel, groupedDate, groupedLine) {
@@ -1242,30 +346,10 @@
       let totalDefects = filteredRecordsGlobal.reduce((s, x) => s + x.qty, 0);
       let rejRate = totalInput > 0 ? (totalDefects / totalInput) * 100 : 0; 
       let yieldRate = totalInput > 0 ? ((totalInput - totalDefects) / totalInput) * 100 : 0;
-      let dpu = totalInput > 0 ? (totalDefects / totalInput).toFixed(4) : "0.0000";
-      let ppm = totalInput > 0 ? Math.round((totalDefects / totalInput) * 1000000).toLocaleString() : "0";
-
       document.getElementById('kpi-input').innerText = totalInput.toLocaleString(); 
       document.getElementById('kpi-defects').innerText = totalDefects.toLocaleString();
       document.getElementById('kpi-yield').innerText = yieldRate.toFixed(2) + "%"; 
       document.getElementById('kpi-rejection').innerText = rejRate.toFixed(2) + "%";
-      
-      const dpuBadge = document.getElementById('kpi-dpu-badge');
-      if (dpuBadge) dpuBadge.innerText = `DPU: ${dpu}`;
-
-      const ppmBadge = document.getElementById('kpi-ppm-badge');
-      if (ppmBadge) ppmBadge.innerText = `${ppm} PPM`;
-
-      const yieldBadge = document.getElementById('kpi-yield-badge');
-      if (yieldBadge) {
-        if (yieldRate >= TARGET_YIELD) {
-          yieldBadge.className = "badge bg-success-subtle text-success border border-success-subtle rounded-pill";
-          yieldBadge.innerHTML = "Healthy ≥ 97.0%";
-        } else {
-          yieldBadge.className = "badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill";
-          yieldBadge.innerHTML = "Critical &lt; 97.0%";
-        }
-      }
       
       calculateRedZoneAlerts();
       drawModelSummaryTable(groupedModel); 
@@ -1274,8 +358,6 @@
       drawModelRejChart(groupedModel); 
       drawParetoChart(totalInput); 
       generateStageWiseTables(groupedModel);
-      renderOnScreenLineDateReview();
-      renderOnScreenTop5CAPA();
     }
 
     // Calculate which lines are in the Red Zone and for how many days
@@ -1568,211 +650,6 @@
         htmlString += `</tbody></table>`; 
       }); 
       container.innerHTML = htmlString;
-    }
-
-    /**
-     * Render On-Screen Line & Date Defect Review Table
-     */
-    function renderOnScreenLineDateReview() {
-      const tbody = document.querySelector('#line-date-review-table tbody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-
-      let lines = [...new Set([...filteredRecordsGlobal.map(r=>r.line), ...filteredInputsGlobal.map(i=>i.line)])].sort();
-      let isoDates = [...new Set([...filteredRecordsGlobal.map(r => r.isoDate), ...filteredInputsGlobal.map(i => i.isoDate)])].sort();
-
-      let rowsHtml = '';
-      let rowCount = 0;
-
-      lines.forEach(lineName => {
-        isoDates.forEach(isoD => {
-          let dayInp = filteredInputsGlobal.filter(i => i.line === lineName && i.isoDate === isoD).reduce((s, x) => s + x.input, 0);
-          let dayRecords = filteredRecordsGlobal.filter(r => r.line === lineName && r.isoDate === isoD);
-          let dayProc = dayRecords.filter(r => r.category && r.category.toLowerCase().includes('process')).reduce((s, x) => s + x.qty, 0);
-          let dayRmd = dayRecords.filter(r => r.category && r.category.toLowerCase().includes('rmd')).reduce((s, x) => s + x.qty, 0);
-          let daySmt = dayRecords.filter(r => r.category && r.category.toLowerCase().includes('smt')).reduce((s, x) => s + x.qty, 0);
-          let dayDef = dayRecords.reduce((s, x) => s + x.qty, 0);
-
-          if (dayInp === 0 && dayDef === 0) return;
-          rowCount++;
-
-          let rejRate = dayInp > 0 ? (dayDef / dayInp) * 100 : 0;
-          let fpyRate = dayInp > 0 ? ((dayInp - dayDef) / dayInp) * 100 : (dayDef === 0 ? 100 : 0);
-
-          let causesList = [];
-          dayRecords.forEach(r => {
-            let causeText = r.analysis && r.analysis.trim() ? r.analysis.trim() : 'Under investigation';
-            let catTag = r.category ? `[${r.category.toUpperCase()}]` : '';
-            causesList.push(`${catTag} <strong>${r.defect}</strong> (${causeText}): ${r.qty}`);
-          });
-          let causesDisplay = causesList.length > 0 ? causesList.join('<br>') : '<span class="text-success fw-bold">Zero Defects</span>';
-
-          let isRed = fpyRate < TARGET_YIELD && dayInp > 0;
-          let statusBadge = dayDef === 0 
-            ? '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Normal</span>' 
-            : (isRed 
-                ? '<span class="badge bg-danger text-white rounded-pill">Action Required</span>' 
-                : '<span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">Monitored</span>');
-
-          let actionPlan = dayDef === 0
-            ? 'Process stable. Routine 5S & SOP maintenance.'
-            : (isRed
-                ? 'Immediate 4M root cause analysis required. Audit solder paste/feeder/parameters.'
-                : 'Monitor defect trends. Preventive maintenance & operator verification.');
-
-          rowsHtml += `
-            <tr ${isRed ? 'class="table-danger"' : ''}>
-              <td class="fw-bold text-primary">${lineName}</td>
-              <td class="text-muted fw-bold">${getDisplayDate(isoD)}</td>
-              <td class="text-end fw-bold">${dayInp.toLocaleString()}</td>
-              <td class="text-end ${dayProc > 0 ? 'text-danger fw-bold' : ''}">${dayProc}</td>
-              <td class="text-end ${dayRmd > 0 ? 'text-danger fw-bold' : ''}">${dayRmd}</td>
-              <td class="text-end ${daySmt > 0 ? 'text-danger fw-bold' : ''}">${daySmt}</td>
-              <td class="text-end ${dayDef > 0 ? 'text-danger fw-bold' : ''}">${dayDef}</td>
-              <td class="text-end ${rejRate > 3 ? 'text-danger fw-bold' : ''}">${rejRate.toFixed(2)}%</td>
-              <td class="text-end fw-bold ${isRed ? 'text-danger' : 'text-success'}">${fpyRate.toFixed(2)}%</td>
-              <td class="text-start small">${causesDisplay}</td>
-              <td class="text-start small text-muted">${actionPlan}</td>
-              <td class="text-center">${statusBadge}</td>
-            </tr>`;
-        });
-      });
-
-      if (rowCount === 0) {
-        rowsHtml = '<tr><td colspan="12" class="text-center text-muted py-4">No records found matching filters.</td></tr>';
-      }
-
-      tbody.innerHTML = rowsHtml;
-    }
-
-    /**
-     * Render On-Screen Line-Wise Top 5 Defect & CAPA Action Planner
-     */
-    function renderOnScreenTop5CAPA() {
-      const container = document.getElementById('top5-line-container');
-      if (!container) return;
-
-      let lines = [...new Set([...filteredRecordsGlobal.map(r=>r.line), ...filteredInputsGlobal.map(i=>i.line)])].sort();
-      if (lines.length === 0) {
-        container.innerHTML = '<p class="text-muted py-3">No line data available.</p>';
-        return;
-      }
-
-      let capaMap = getSavedCapaMap();
-      let html = '';
-
-      lines.forEach(lineName => {
-        let lineInp = filteredInputsGlobal.filter(i => i.line === lineName).reduce((s, x) => s + x.input, 0);
-        let lineRecs = filteredRecordsGlobal.filter(r => r.line === lineName);
-        let lineDefs = lineRecs.reduce((s, x) => s + x.qty, 0);
-        let lineYield = lineInp > 0 ? (((lineInp - lineDefs) / lineInp) * 100).toFixed(2) : '100.00';
-        let isLowYield = Number(lineYield) < TARGET_YIELD && lineInp > 0;
-
-        html += `
-          <div class="card mb-4 border shadow-sm rounded-3 overflow-hidden">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 px-4">
-              <div class="d-flex align-items-center gap-3">
-                <span class="fs-5 fw-bold text-dark">Line: <span class="text-primary">${lineName}</span></span>
-                <span class="badge ${isLowYield ? 'bg-danger text-white' : 'bg-success text-white'} rounded-pill">
-                  FPY: ${lineYield}% ${isLowYield ? '(Below Target)' : '(Healthy)'}
-                </span>
-              </div>
-              <div class="text-muted small">
-                Total Input: <strong>${lineInp.toLocaleString()}</strong> | Total Defects: <strong class="${lineDefs > 0 ? 'text-danger' : ''}">${lineDefs.toLocaleString()}</strong>
-              </div>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover align-middle custom-dashboard-table mb-0">
-                  <thead>
-                    <tr>
-                      <th style="width: 10%;">Category</th>
-                      <th style="width: 6%;">Rank</th>
-                      <th style="width: 18%;">Defect Name</th>
-                      <th style="width: 8%;" class="text-end">Qty</th>
-                      <th style="width: 8%;" class="text-end">Rate%</th>
-                      <th style="width: 18%;">Defect Cause / Analysis</th>
-                      <th style="width: 22%;">CAPA Action Plan (Editable)</th>
-                      <th style="width: 10%;">Owner &amp; Target</th>
-                    </tr>
-                  </thead>
-                  <tbody>`;
-
-        const categories = ['Process', 'RMD', 'SMT'];
-        categories.forEach(cat => {
-          let catRecs = lineRecs.filter(r => r.category && r.category.toLowerCase().includes(cat.toLowerCase()));
-          let defMap = {};
-          catRecs.forEach(r => {
-            if (!defMap[r.defect]) {
-              defMap[r.defect] = { name: r.defect, qty: 0, causes: [] };
-            }
-            defMap[r.defect].qty += r.qty;
-            if (r.analysis && r.analysis.trim() && !defMap[r.defect].causes.includes(r.analysis.trim())) {
-              defMap[r.defect].causes.push(r.analysis.trim());
-            }
-          });
-
-          let sortedDefects = Object.values(defMap).sort((a, b) => b.qty - a.qty);
-          let top5 = sortedDefects.slice(0, 5);
-
-          for (let rank = 1; rank <= 5; rank++) {
-            let item = top5[rank - 1];
-            let key = `${lineName}_${cat}_${item ? item.name : 'empty_' + rank}`;
-            let saved = capaMap[key] || {};
-            let rateVal = (item && lineInp > 0) ? ((item.qty / lineInp) * 100).toFixed(2) + '%' : '0.00%';
-            let causeStr = item ? (item.causes.length > 0 ? item.causes.join('; ') : 'Cause pending investigation') : 'None';
-
-            let savedAction = saved.action || '';
-            let savedOwner = saved.owner || '';
-            let savedTarget = saved.targetDate || '';
-            let savedStatus = saved.status || (item ? 'Open' : 'Closed');
-
-            html += `
-              <tr>
-                ${rank === 1 ? `<td rowspan="5" class="fw-bold bg-light text-center border-end align-middle"><span class="badge bg-secondary">${cat}</span></td>` : ''}
-                <td class="text-center fw-bold text-muted">#${rank}</td>
-                <td class="fw-bold ${item ? 'text-dark' : 'text-muted fst-italic'}">
-                  ${item ? item.name : '<span class="text-muted small">Available slot</span>'}
-                </td>
-                <td class="text-end fw-bold ${item ? 'text-danger' : 'text-muted'}">${item ? item.qty : 0}</td>
-                <td class="text-end fw-bold ${item ? 'text-danger' : 'text-muted'}">${rateVal}</td>
-                <td class="small text-muted">${causeStr}</td>
-                <td>
-                  <input type="text" class="capa-action-input mb-1" 
-                    placeholder="${item ? 'Enter action plan for ' + item.name : 'Enter preventive action'}"
-                    value="${savedAction.replace(/"/g, '&quot;')}"
-                    onchange="saveCapaField('${key}', 'action', this.value)">
-                  <div class="d-flex gap-2">
-                    <select class="form-select form-select-sm py-0 px-1" style="font-size:0.75rem; width:110px;"
-                      onchange="saveCapaField('${key}', 'status', this.value)">
-                      <option value="Open" ${savedStatus === 'Open' ? 'selected' : ''}>Open</option>
-                      <option value="In Progress" ${savedStatus === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                      <option value="Verified" ${savedStatus === 'Verified' ? 'selected' : ''}>Verified</option>
-                      <option value="Closed" ${savedStatus === 'Closed' ? 'selected' : ''}>Closed</option>
-                    </select>
-                  </div>
-                </td>
-                <td>
-                  <input type="text" class="capa-action-input mb-1" placeholder="Owner" 
-                    value="${savedOwner.replace(/"/g, '&quot;')}" 
-                    onchange="saveCapaField('${key}', 'owner', this.value)">
-                  <input type="date" class="capa-action-input" 
-                    value="${savedTarget}" 
-                    onchange="saveCapaField('${key}', 'targetDate', this.value)">
-                </td>
-              </tr>`;
-          }
-        });
-
-        html += `
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>`;
-      });
-
-      container.innerHTML = html;
     }
 
     /**
@@ -2146,12 +1023,6 @@
             if (item) {
               let rateVal = lineInp > 0 ? (item.qty / lineInp) : 0;
               let causeStr = item.causes.length > 0 ? item.causes.join('; ') : 'Cause investigation in progress';
-              let saved = getSavedCapaAction(lineName, cat, rank, item.name);
-              let actionVal = (saved && saved.action && saved.action.trim()) ? saved.action.trim() : `[Enter Action Plan / CAPA for ${item.name}]`;
-              let ownerVal = (saved && saved.owner && saved.owner.trim()) ? saved.owner.trim() : `[Assign Owner]`;
-              let targetDateVal = (saved && saved.targetDate && saved.targetDate.trim()) ? saved.targetDate.trim() : `[Target Date]`;
-              let statusVal = (saved && saved.status && saved.status.trim()) ? saved.status.trim() : `Open`;
-
               rRow.values = [
                 lineName,
                 cat,
@@ -2160,26 +1031,20 @@
                 item.qty,
                 rateVal,
                 causeStr,
-                actionVal,
-                ownerVal,
-                targetDateVal,
-                statusVal,
+                `[Enter Action Plan / CAPA for ${item.name}]`,
+                `[Assign Owner]`,
+                `[Target Date]`,
+                `Open`,
                 `▶ View Line`
               ];
               styleRow(rRow, null, false, false);
               rRow.getCell(6).numFmt = '0.00%';
               rRow.getCell(5).font = { bold: true, color: { argb: 'FFD32F2F' } };
-              rRow.getCell(8).font = { italic: !saved.action, color: { argb: saved.action ? 'FF000000' : 'FF333333' } };
-              rRow.getCell(9).font = { italic: !saved.owner, color: { argb: saved.owner ? 'FF000000' : 'FF666666' } };
-              rRow.getCell(10).font = { italic: !saved.targetDate, color: { argb: saved.targetDate ? 'FF000000' : 'FF666666' } };
-              rRow.getCell(11).font = { bold: true, color: { argb: statusVal === 'Closed' ? 'FF198754' : 'FFCC6600' } };
+              rRow.getCell(8).font = { italic: true, color: { argb: 'FF333333' } };
+              rRow.getCell(9).font = { italic: true, color: { argb: 'FF666666' } };
+              rRow.getCell(10).font = { italic: true, color: { argb: 'FF666666' } };
+              rRow.getCell(11).font = { bold: true, color: { argb: 'FFCC6600' } };
             } else {
-              let saved = getSavedCapaAction(lineName, cat, rank, 'empty_' + rank);
-              let actionVal = (saved && saved.action && saved.action.trim()) ? saved.action.trim() : `[Optional Action Writing Slot]`;
-              let ownerVal = (saved && saved.owner && saved.owner.trim()) ? saved.owner.trim() : `-`;
-              let targetDateVal = (saved && saved.targetDate && saved.targetDate.trim()) ? saved.targetDate.trim() : `-`;
-              let statusVal = (saved && saved.status && saved.status.trim()) ? saved.status.trim() : `Closed`;
-
               rRow.values = [
                 lineName,
                 cat,
@@ -2188,10 +1053,10 @@
                 0,
                 0,
                 `None recorded`,
-                actionVal,
-                ownerVal,
-                targetDateVal,
-                statusVal,
+                `[Optional Action Writing Slot]`,
+                `-`,
+                `-`,
+                `Closed`,
                 `▶ View Line`
               ];
               styleRow(rRow, null, false, false);
@@ -2857,17 +1722,6 @@
     }
 
     // Expose handlers to global window object
-    window.openDataSourceModal = openDataSourceModal;
-    window.closeDataSourceModal = closeDataSourceModal;
-    window.switchModalTab = switchModalTab;
-    window.saveAndSyncApiUrl = saveAndSyncApiUrl;
-    window.loadPastedDataFromModal = loadPastedDataFromModal;
-    window.initDashboard = initDashboard;
-    window.switchDashboardTab = switchDashboardTab;
-    window.setDatePreset = setDatePreset;
-    window.toggleCheckboxes = toggleCheckboxes;
-    window.filterCheckboxesList = filterCheckboxesList;
-    window.saveCapaField = saveCapaField;
     window.applyFilters = applyFilters;
     window.resetFilters = resetFilters;
     window.toggleParetoMode = toggleParetoMode;
