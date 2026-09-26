@@ -442,6 +442,9 @@
         </div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="header-btn btn btn-outline-light text-white shadow-sm" onclick="openDataSourceModal()">
+          <span>🔗</span> Data Source
+        </button>
         <button id="exportTop5Btn" class="header-btn btn btn-warning text-dark shadow-sm" onclick="exportTop5ReportToExcelJS()" disabled>
           <span>🎯</span> Export Line Top 5 CAPA
         </button>
@@ -451,6 +454,18 @@
         <button id="exportBtn" class="header-btn btn btn-success text-white shadow-sm" onclick="exportToExcelJS()" disabled>
           <span>📥</span> Export Master Report
         </button>
+      </div>
+    </div>
+
+    <!-- Data Connection Alert Banner -->
+    <div id="data-connection-alert" class="alert alert-warning d-none py-2 px-3 mb-3 rounded-3 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <strong id="data-alert-title">⚠️ Google Sheets Connection Note:</strong> 
+        <span id="data-alert-message" class="ms-1">Unable to connect to Google Apps Script.</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-dark py-1 px-3 rounded-pill fw-bold" onclick="openDataSourceModal()">Update API URL / Paste Data</button>
+        <button class="btn btn-sm btn-outline-secondary py-1 px-2 rounded-pill" onclick="document.getElementById('data-connection-alert').classList.add('d-none')">✕</button>
       </div>
     </div>
 
@@ -708,6 +723,59 @@
     </div>
   </div>
 
+  <!-- Data Source Modal -->
+  <div class="modal fade" id="dataSourceModal" tabindex="-1" aria-hidden="true" style="display:none; background: rgba(0,0,0,0.6);">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-bottom py-3 px-4 bg-light">
+          <h5 class="modal-title fw-bold text-dark fs-5">🔗 Data Source &amp; Google Sheet Live Sync</h5>
+          <button type="button" class="btn-close" onclick="closeDataSourceModal()"></button>
+        </div>
+        <div class="modal-body p-4">
+          <ul class="nav nav-pills mb-3" id="dataSourceTabs" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active fw-bold py-1 px-3" id="modal-tab-api" onclick="switchModalTab('api')">Google Apps Script Web App</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link fw-bold py-1 px-3 ms-2" id="modal-tab-paste" onclick="switchModalTab('paste')">Paste Sheet Data (JSON)</button>
+            </li>
+          </ul>
+
+          <div id="modal-panel-api">
+            <div class="mb-3">
+              <label class="form-label fw-bold text-secondary small">GOOGLE APPS SCRIPT WEB APP URL</label>
+              <div class="input-group">
+                <input type="url" id="custom-api-url-input" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
+                <button class="btn btn-primary fw-bold px-3" onclick="saveAndSyncApiUrl()">Connect &amp; Sync ↻</button>
+              </div>
+              <small class="text-muted d-block mt-2">
+                <strong>How to get the active URL:</strong> In your Google Sheet (<span class="text-primary fw-bold">SMT_Master</span>), click <em>Extensions &gt; Apps Script</em>. Click <em>Deploy &gt; Manage deployments</em> (or <em>New deployment</em>). Select <strong>Web app</strong>, ensure <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>. Copy the URL ending in <code>/exec</code> and paste it above.
+              </small>
+            </div>
+            <div class="p-3 bg-light rounded-3 border">
+              <span class="fw-bold d-block small text-dark mb-1">Connection Telemetry:</span>
+              <div id="api-connection-status-text" class="small text-muted">Checking connection...</div>
+            </div>
+          </div>
+
+          <div id="modal-panel-paste" class="d-none">
+            <div class="mb-3">
+              <label class="form-label fw-bold text-secondary small">PASTE JSON PRODUCTION DATA</label>
+              <textarea id="paste-json-input" class="form-control font-monospace" style="font-size:0.8rem;" rows="8" placeholder='{"inputs":[{"date":"2026-09-01","line":"SMT 1","model":"M1","input":1000}], "records":[{"date":"2026-09-01","line":"SMT 1","model":"M1","stage":"SMT","category":"Process","defect":"Bridging","qty":5,"analysis":"Clogged aperture"}]}'></textarea>
+              <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+                <small class="text-muted">Loads your exact production records and caches them permanently in your browser.</small>
+                <button class="btn btn-success fw-bold px-3" onclick="loadPastedDataFromModal()">Load Pasted Data ✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top py-2 px-4">
+          <button type="button" class="btn btn-secondary rounded-pill px-3" onclick="closeDataSourceModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- React/Vite mount script (Only loaded if available) -->
   <script type="module">
     if (window.location.hostname === 'localhost' || window.location.hostname.includes('run.app') || window.location.hostname === '127.0.0.1') {
@@ -859,39 +927,138 @@
       if (top5Btn) top5Btn.disabled = false;
     }
 
-    async function initDashboard() {
-      // 1. Immediately reflect data in 0ms so the user NEVER waits on an empty screen!
-      let initialData = null;
+    function getEffectiveApiUrl() {
+      return localStorage.getItem('califonix_custom_api_url') || API_URL;
+    }
+
+    function openDataSourceModal() {
+      const modal = document.getElementById('dataSourceModal');
+      const input = document.getElementById('custom-api-url-input');
+      const statusText = document.getElementById('api-connection-status-text');
+      if (input) input.value = getEffectiveApiUrl();
+      if (statusText) statusText.innerText = "Configured URL: " + getEffectiveApiUrl();
+      if (modal) modal.style.display = 'block';
+    }
+
+    function closeDataSourceModal() {
+      const modal = document.getElementById('dataSourceModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function switchModalTab(tabId) {
+      document.getElementById('modal-tab-api').classList.toggle('active', tabId === 'api');
+      document.getElementById('modal-tab-paste').classList.toggle('active', tabId === 'paste');
+      document.getElementById('modal-panel-api').classList.toggle('d-none', tabId !== 'api');
+      document.getElementById('modal-panel-paste').classList.toggle('d-none', tabId !== 'paste');
+    }
+
+    async function saveAndSyncApiUrl() {
+      const input = document.getElementById('custom-api-url-input');
+      const statusText = document.getElementById('api-connection-status-text');
+      const url = (input.value || '').trim();
+      if (!url) {
+        alert("https://script.google.com/macros/s/AKfycbzt-tb899ZjfBDm_4THMHcKP8Ux-JtU7LguIMglOUE6FXsJPRYmt9EEja38iIERFN9AxA/exec");
+        return;
+      }
+      localStorage.setItem('califonix_custom_api_url', url);
+      statusText.innerHTML = "Connecting to " + url + "... ⏳";
+      closeDataSourceModal();
+      await initDashboard(true);
+    }
+
+    function loadPastedDataFromModal() {
+      const textarea = document.getElementById('paste-json-input');
+      const text = (textarea.value || '').trim();
+      if (!text) {
+        alert("Please paste your JSON data first.");
+        return;
+      }
       try {
-        const cached = localStorage.getItem('cached_production_quality_data');
-        if (cached) {
-          initialData = JSON.parse(cached);
+        const parsed = JSON.parse(text);
+        if (!parsed.inputs || !parsed.records) {
+          alert("Invalid data format! JSON must contain 'inputs' array and 'records' array.");
+          return;
+        }
+        localStorage.setItem('califonix_user_saved_data', JSON.stringify(parsed));
+        loadDataIntoDashboard(parsed, 'User Sheet Data Loaded');
+        const alertBox = document.getElementById('data-connection-alert');
+        if (alertBox) alertBox.classList.add('d-none');
+        closeDataSourceModal();
+        alert("Success! Your production data has been loaded and saved locally.");
+      } catch (e) {
+        alert("JSON syntax error: " + e.message);
+      }
+    }
+
+    async function initDashboard(forceSync = false) {
+      const apiUrl = getEffectiveApiUrl();
+      const sb = document.getElementById('sync-status');
+      const alertBox = document.getElementById('data-connection-alert');
+      const alertMsg = document.getElementById('data-alert-message');
+
+      // 1. Immediately reflect any saved user data in 0ms so screen is NEVER blank
+      let loaded = false;
+      try {
+        const saved = localStorage.getItem('califonix_user_saved_data');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.records && parsed.records.length > 0) {
+            loadDataIntoDashboard(parsed, 'User Production Data');
+            loaded = true;
+          }
         }
       } catch (e) {}
 
-      if (!initialData || !initialData.records || initialData.records.length === 0) {
-        initialData = EMBEDDED_BASELINE_DATA;
+      if (!loaded) {
+        // Fallback baseline until cloud sync completes
+        loadDataIntoDashboard(EMBEDDED_BASELINE_DATA, 'Production Baseline Active');
       }
 
-      loadDataIntoDashboard(initialData, 'Production Data Ready');
+      if (sb) {
+        sb.className = "status-badge bg-primary text-white border border-primary shadow-sm"; 
+        sb.innerHTML = '<span class="pulse-dot"></span> Syncing Google Sheet...';
+      }
 
-      // 2. Asynchronously attempt Cloud Live Sync with timeout
+      // 2. Fetch live data from Google Apps Script Web App
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(API_URL, { signal: controller.signal });
+        const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout for Google Sheet calculation
+        const response = await fetch(apiUrl, { signal: controller.signal, redirect: 'follow' });
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const cloudData = await response.json();
-          if (cloudData && cloudData.records && cloudData.records.length > 0) {
-            localStorage.setItem('cached_production_quality_data', JSON.stringify(cloudData));
-            loadDataIntoDashboard(cloudData, 'Cloud Live Synced');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} (${response.statusText || 'Error'})`);
+        }
+
+        const text = await response.text();
+        if (text.trim().startsWith('<')) {
+          throw new Error("Google Apps Script returned an HTML page instead of JSON. Ensure the script deployment has 'Who has access' set to 'Anyone'.");
+        }
+
+        const cloudData = JSON.parse(text);
+        if (cloudData && cloudData.records && cloudData.inputs) {
+          localStorage.setItem('califonix_user_saved_data', JSON.stringify(cloudData));
+          loadDataIntoDashboard(cloudData, 'Live Sheet Synced');
+          if (alertBox) alertBox.classList.add('d-none');
+          if (sb) {
+            sb.className = "status-badge bg-success text-white border border-success shadow-sm"; 
+            sb.innerHTML = '<span class="pulse-dot"></span> Live Sheet Synced';
           }
+        } else {
+          throw new Error("Received data does not contain expected 'inputs' and 'records' arrays.");
         }
       } catch (err) {
-        // Cloud API unavailable or timed out; baseline data is already active and healthy!
-        console.log("Background cloud sync note (offline/fallback active):", err);
+        console.warn("Google Apps Script sync warning:", err);
+        if (alertBox) {
+          alertBox.classList.remove('d-none');
+          if (alertMsg) {
+            alertMsg.innerHTML = `<strong>Live Sheet connection notice:</strong> ${err.message} <br><small class="text-dark">Your Google Apps Script Web App may need to be redeployed or URL updated. Click <b>"Update API URL / Paste Data"</b> to paste your active link or data.</small>`;
+          }
+        }
+        if (sb) {
+          sb.className = "status-badge bg-warning text-dark border border-warning shadow-sm"; 
+          sb.innerHTML = '⚠️ Sheet Sync Notice (Click 🔗 Data Source)';
+        }
       }
     }
 
@@ -2690,6 +2857,11 @@
     }
 
     // Expose handlers to global window object
+    window.openDataSourceModal = openDataSourceModal;
+    window.closeDataSourceModal = closeDataSourceModal;
+    window.switchModalTab = switchModalTab;
+    window.saveAndSyncApiUrl = saveAndSyncApiUrl;
+    window.loadPastedDataFromModal = loadPastedDataFromModal;
     window.initDashboard = initDashboard;
     window.switchDashboardTab = switchDashboardTab;
     window.setDatePreset = setDatePreset;
