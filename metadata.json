@@ -1,0 +1,6 @@
+{
+  "name": "Quality BI Dashboard",
+  "description": "Production Quality & Yield Dashboard with Defect Pareto Analysis, Stage-Wise Reports, and Master Excel Export with Line & Date Defect Review.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
